@@ -56,6 +56,7 @@ func (*PromoHandler) GetCommands() []string {
 func (h *PromoHandler) Handle(reqEnd *base.RequestEnv, msg *tgbotapi.Message) {
 	promoForm := wizard.NewWizard(h, 2)
 
+	//Хз
 	promoForm.ProcessNextField(reqEnd, msg)
 
 }
@@ -65,9 +66,9 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 	// promoField := fields.FindField(fieldPromo)
 	// confirmField := fields.FindField(fieldConfirmation)
 
-	// promoField
-	// // confirmData, ok2 := confirmField.Data.(wizard.)
+	// // promoField
+	// confirmData, ok2 := confirmField.Data.(wizard.)
 
-	// reply := base.NewReplier(h.appEnv, reqenv, msg)
-	// reply(promoFieldsTrPrefix + fieldPromo)
+	reply := base.NewReplier(h.appEnv, reqenv, msg)
+	reply(promoFieldsTrPrefix + fieldPromo)
 }
