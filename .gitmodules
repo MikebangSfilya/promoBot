@@ -1,6 +1,0 @@
-[submodule "vendor/telegram-bot-api"]
-	path = vendor/telegram-bot-api
-	url = https://github.com/OvyFlash/telegram-bot-api.git
-[submodule "telegram-bot-api"]
-	path = telegram-bot-api
-	url = https://github.com/OvyFlash/telegram-bot-api.git

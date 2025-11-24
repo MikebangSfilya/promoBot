@@ -1,5 +1,7 @@
 package main
 
+
+//взято из бота предложки чисто
 func init() {
 	locpool.Resources["en"] = map[string]string{
 		"commands.default.message.on.command": "Unknown command",

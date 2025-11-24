@@ -12,8 +12,8 @@ import (
 	"syscall"
 	"time"
 
+	tgbotapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/go-redis/redis/v8"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kozalosev/goSadTgBot/app"
 	"github.com/kozalosev/goSadTgBot/base"
@@ -42,7 +42,6 @@ func main() {
 
 	stateStorage, db := establishConnections(ctx)
 
-	//Создание нового бота
 	bot, err := tgbotapi.NewBotAPI(os.Getenv("API_TOKEN"))
 	if err != nil {
 		panic(err)
@@ -62,12 +61,11 @@ func main() {
 	messageHandlers, callbackHandlers := initHandlers(appenv, stateStorage)
 	api.SetCommands(locpool, supportedLanguages, base.ConvertHandlersToCommands(messageHandlers))
 
-	//Параметры нашего бота собственнно
 	appParams := &app.Params{
 		Ctx:              ctx,
 		MessageHandlers:  messageHandlers,
 		CallbackHandlers: callbackHandlers,
-		Settings:         repo.NewUserService(appenv), //Честно, не оосбо понял что конкретно тут надо
+		Settings:         repo.NewUserService(appenv),
 		LangPool:         locpool,
 		API:              api,
 		StateStorage:     stateStorage,
@@ -113,7 +111,7 @@ func main() {
 		server.StopListeningForIncomingRequests(srv)
 	}
 
-	wg.Wait() // wait until all executing goroutines finish
+	wg.Wait()
 	shutdown(stateStorage, db)
 }
 
@@ -140,7 +138,6 @@ func establishConnections(ctx context.Context) (stateStorage wizard.StateStorage
 	return
 }
 
-// Инициализуриует массив хендлеров описаных в пакете хендлерс, мессайдже видимо что отправляет пользователь, каллбак что отдаем ему
 func initHandlers(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage) (messageHandlers []base.MessageHandler, callbackHandlers []base.CallbackHandler) {
 	languageHandler := handlers.NewLanguageHandler(appEnv, stateStorage)
 	messageHandlers = []base.MessageHandler{

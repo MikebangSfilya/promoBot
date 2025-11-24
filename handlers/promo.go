@@ -4,7 +4,7 @@ import (
 	"promo-bot/db/repo"
 	"promo-bot/handlers/common"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	tgbotapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/kozalosev/goSadTgBot/base"
 	"github.com/kozalosev/goSadTgBot/wizard"
 )
@@ -45,8 +45,8 @@ func (h *PromoHandler) GetWizardDescriptor() *wizard.FormDescriptor {
 
 	desc.AddField(fieldPromo, promoFieldsTrPrefix+fieldPromo)
 
-	confirm := desc.AddField(fieldConfirmation, "Подтвердите применение промокода")
-	confirm.InlineKeyboardAnswers = []string{"Применить", "Отмена"}
+	confirm := desc.AddField(fieldConfirmation, "")
+	confirm.InlineKeyboardAnswers = []string{"", ""}
 	return desc
 }
 
