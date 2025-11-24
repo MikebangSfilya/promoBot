@@ -1,9 +1,8 @@
 package handlers
 
 import (
-	"promo-bot/db/repo"
-	"promo-bot/handlers/common"
-
+	"github.com/MikebangSfilya/promoBot/db/repo"
+	"github.com/MikebangSfilya/promoBot/handlers/common"
 	tgbotapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/kozalosev/goSadTgBot/base"
 	"github.com/kozalosev/goSadTgBot/logconst"

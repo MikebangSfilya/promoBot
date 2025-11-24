@@ -5,8 +5,8 @@ package repo
 import (
 	"errors"
 	"math/rand"
-	"promo-bot/db/dto"
 
+	"github.com/MikebangSfilya/promoBot/db/dto"
 	"github.com/kozalosev/goSadTgBot/base"
 	"github.com/kozalosev/goSadTgBot/settings"
 )

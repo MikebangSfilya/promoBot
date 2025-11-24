@@ -1,4 +1,4 @@
-module promo-bot
+module github.com/MikebangSfilya/promoBot
 
 go 1.24.3
 

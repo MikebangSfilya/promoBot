@@ -5,13 +5,14 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"promo-bot/db/repo"
-	"promo-bot/handlers"
+
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/MikebangSfilya/promoBot/db/repo"
+	"github.com/MikebangSfilya/promoBot/handlers"
 	tgbotapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/go-redis/redis/v8"
 	"github.com/jackc/pgx/v5/pgxpool"
