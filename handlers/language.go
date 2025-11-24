@@ -22,7 +22,7 @@ const (
 	ruFlag = "🇷🇺"
 )
 
-var supportedLangCodes = []string{enFlag, enCode, ruFlag, ruCode}
+// var supportedLangCodes = []string{enFlag, enCode, ruFlag, ruCode}
 
 type LanguageHandler struct {
 	base.CommandHandlerTrait

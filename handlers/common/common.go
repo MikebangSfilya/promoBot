@@ -12,6 +12,7 @@ var CommandScopePrivateAndGroupChats = []base.CommandScope{base.CommandScopeAllP
 
 type GroupCommandTrait struct{}
 
+//nolint:unused
 func (*GroupCommandTrait) isGroupCommand() bool {
 	return true
 }

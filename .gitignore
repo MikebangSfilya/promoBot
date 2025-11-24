@@ -3,4 +3,3 @@ docker-compose.yaml
 001_init.sql
 Dockerfile
 language copy
-Makefile
