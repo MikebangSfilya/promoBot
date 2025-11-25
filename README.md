@@ -16,8 +16,8 @@
 
 ## Как должен рабоать
 
-![alt text](image.png)
+![Как должно](./images/image.png)
 
 ## Как работает сейчас
 
-![alt text](image-1.png)
+![Как сейчас](./images/image-1.png)
