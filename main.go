@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/MikebangSfilya/promoBot/db/repo"
-	"github.com/MikebangSfilya/promoBot/handlers"
+	"github.com/MikebangSfilya/promoBot/internal/db/repo"
+	"github.com/MikebangSfilya/promoBot/internal/handlers"
 	tgbotapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/go-redis/redis/v8"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -33,7 +33,7 @@ var (
 )
 
 func main() {
-	// the application is listening for the SIGTERM signal to exit
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 

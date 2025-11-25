@@ -6,7 +6,7 @@ import (
 	"errors"
 	"math/rand"
 
-	"github.com/MikebangSfilya/promoBot/db/dto"
+	"github.com/MikebangSfilya/promoBot/internal/db/dto"
 	"github.com/kozalosev/goSadTgBot/base"
 	"github.com/kozalosev/goSadTgBot/settings"
 )
@@ -22,7 +22,7 @@ func NewUserService(appEnv *base.ApplicationEnv) *UserService {
 	return &UserService{appEnv: appEnv}
 }
 
-// FetchUserOptions is the implementation of the [settings.OptionsFetcher.FetchUserOptions] method for this application.
+// Нужен для реализации интерфейса, в релаьном приложение не работает
 func (service *UserService) FetchUserOptions(uid int64, defaultLang string) (settings.LangCode, settings.UserOptions) {
 	var (
 		language *string
@@ -31,7 +31,7 @@ func (service *UserService) FetchUserOptions(uid int64, defaultLang string) (set
 	if err := service.appEnv.Database.QueryRow(service.appEnv.Ctx,
 		"SELECT language, banned, role FROM Users WHERE uid = $1", uid).
 		Scan(&language, &opts.Banned, &opts.Role); err != nil {
-
+		// panic(err)
 	}
 	if language == nil {
 		language = &defaultLang
@@ -48,4 +48,20 @@ func (service *UserService) ChangeLanguage(uid int64, lang settings.LangCode) er
 	}
 
 	return nil
+}
+
+// Еще одна заглушка которая в будущем будет реально работать
+func (service *UserService) CreatePromo(promo string) (bool, error) {
+
+	query := `
+	INSERT INTO Promo_codes
+	(code, bonus_length, since, until, capacity)
+	VALUES ($1, $2, $3, $4, $5)
+	`
+
+	if err := service.appEnv.Database.QueryRow(service.appEnv.Ctx, query); err != nil {
+
+	}
+
+	return true, nil
 }

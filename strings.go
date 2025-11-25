@@ -1,7 +1,6 @@
 package main
 
-
-//взято из бота предложки чисто
+// взято из бота предложки чисто
 func init() {
 	locpool.Resources["en"] = map[string]string{
 		"commands.default.message.on.command": "Unknown command",
@@ -46,12 +45,14 @@ func init() {
 		"commands.default.message.on.command": "Неизвестная команда",
 		"callbacks.error":                     "Состояние формы потерялось 😢",
 
+		"promo.create": "Промокод создан:",
+
 		"commands.help.description":     "показать помощь",
 		"commands.help.fields.language": "Выберите свой язык:",
 
 		"commands.language.description":     "сменить язык",
 		"commands.language.fields.language": "Выберите свой язык:",
-		"commands.promo.fields.promo":       "Давай промокод и не шурши",
+		"commands.promo.fields.promo":       "Введите промокод новым сообщением",
 
 		"handlers.suggest.fields.anonymously":      "Вы хотите опубликовать сообщение анонимно или публично?",
 		"handlers.suggest.fields.visibleForAdmins": "Вы согласны показать своё имя админам? Нам бы хотелось знать, кто нам пишет, чтобы отбирать кандидатов в новые админы.",
