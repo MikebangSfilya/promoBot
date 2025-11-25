@@ -16,8 +16,17 @@ const (
 
 	fieldPromo        = "promo"
 	fieldConfirmation = "confirmation"
-	actionCreate      = "Создать"
-	actionCancel      = "Отменить"
+	fieldPromoCreated = "Промокод создан: "
+
+	actionCreate = "Создать"
+	actionCancel = "Отменить"
+	textToCreate = "Подтвердите создание промокода:"
+
+	promoCanceled    = "Создание промокода отменено"
+	errUnknowComma   = "Неизвестная команда"
+	errToCreatePromo = "Ошибка при создание промокода"
+
+	unableToSave = "Невозможно сохранить прокод"
 )
 
 type PromoHandler struct {
@@ -52,7 +61,7 @@ func (h *PromoHandler) GetWizardDescriptor() *wizard.FormDescriptor {
 	desc.AddField(fieldPromo, promoFieldsTrPrefix+fieldPromo)
 
 	//Инлайн добавление поля с кнопками активировать и отменить
-	confirm := desc.AddField(fieldConfirmation, "Подтвердите создание промокода:")
+	confirm := desc.AddField(fieldConfirmation, textToCreate)
 	confirm.InlineKeyboardAnswers = []string{actionCreate, actionCancel}
 	return desc
 }
@@ -84,27 +93,33 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 	//Создание ответчика
 	reply := base.NewReplier(h.appEnv, reqenv, msg)
 
-	//Пустой промокод
-	if promoCode == "" {
-		reply("Ошибка: промокод не может быть пустым")
-		return
-	}
 	switch confirmAct {
 	case actionCreate:
+		//Позже заменить вообще весь метод на заполнение стурктуры models.Promo
+		/*
+			type Promo struct {
+				Code        string    `db:"code"`
+				BonusLength int       `db:"bonus_length"`
+				Since       time.Time `db:"since"`
+				Until       time.Time `db:"until"`
+				Capacity    int       `db:"capacity"`
+			}
+		*/
 		success, err := h.userService.CreatePromo(promoCode)
 		if err != nil {
-			reply("Ошибка при создание промокода")
+			slog.Error(errToCreatePromo, "error", err)
+			reply(errToCreatePromo)
 			return
 		}
 		if success {
-			reply("Промокод '" + promoCode + "' создан")
+			reply(fieldPromoCreated + promoCode)
 		} else {
-			reply("Невозможно сохранить прокод")
+			reply(unableToSave)
 		}
 	case actionCancel:
-		reply("Создание промокода отменено")
+		reply(promoCanceled)
 	default:
-		reply("Неизвестное действие")
+		reply(errUnknowComma)
 	}
 
 }
