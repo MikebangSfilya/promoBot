@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"fmt"
 	"log/slog"
+	"strconv"
 
 	"github.com/MikebangSfilya/promoBot/internal/db/repo"
 	"github.com/MikebangSfilya/promoBot/internal/handlers/common"
@@ -82,10 +84,11 @@ func (*PromoHandler) GetCommands() []string {
 
 func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 
-	//Создаем помошника с 2 полями
+	//Создание визарда
 	promoForm := wizard.NewWizard(h, 4)
 
 	//Создание пустых полей для данных
+	//Леня, если будешь смотреть можеь описать ниже нужно ли тут столько пустых, мб как-то можно лучше, возможн пойму раньше сам :-0
 	promoForm.AddEmptyField(fieldPromo, wizard.Text)
 	promoForm.AddEmptyField(fieldLenght, wizard.Text)
 	promoForm.AddEmptyField(fieldCapacity, wizard.Text)
@@ -98,13 +101,24 @@ func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 
 func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fields wizard.Fields) {
 	//extract
-	//Получаем наши строки промокода и подтвержения
-	promoCode, confirmAct, capAct, lenght := extractPromoInfo(fields)
+	promoCode := extractPromoInfo(fields, fieldPromo)
+	confirmAct := extractPromoInfo(fields, fieldConfirmation)
+	capasityExtr := extractPromoInfo(fields, fieldCapacity)
+	lenghtExtr := extractPromoInfo(fields, fieldLenght)
+
+	capasity, err := strToInt(capasityExtr)
+	if err != nil {
+		return
+	}
+	lenght, err := strToInt(lenghtExtr)
+	if err != nil {
+		return
+	}
 
 	modelToRepo := models.Promo{
 		Code:        promoCode,
-		BonusLength: lenght,
-		Capacity:    capAct,
+		BonusLength: capasity,
+		Capacity:    lenght,
 	}
 
 	//Создание ответчика
@@ -112,16 +126,6 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 
 	switch confirmAct {
 	case actionCreate:
-		//Позже заменить вообще весь метод на заполнение стурктуры models.Promo
-		/*
-			type Promo struct {
-				Code        string    `db:"code"`
-				BonusLength int       `db:"bonus_length"`
-				Since       time.Time `db:"since"`
-				Until       time.Time `db:"until"`
-				Capacity    int       `db:"capacity"`
-			}
-		*/
 		success, err := h.userService.CreatePromo(modelToRepo)
 		if err != nil {
 			slog.Error(errToCreatePromo, "error", err)
@@ -129,7 +133,10 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 			return
 		}
 		if success {
-			reply(fieldPromoCreated + promoCode + fieldLenght + modelToRepo.BonusLength + fieldCapacity + modelToRepo.Capacity)
+			reply(fmt.Sprintf("%s: %s, %s: %d, %s: %d",
+				fieldPromoCreated, promoCode,
+				fieldLenght, modelToRepo.BonusLength,
+				fieldCapacity, modelToRepo.Capacity))
 		} else {
 			reply(unableToSave)
 		}
@@ -141,45 +148,29 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 
 }
 
-// Костыль сразу на все, потом на универсальную фукнцию переделаю
-func extractPromoInfo(fields wizard.Fields) (string, string, string, string) {
+func extractPromoInfo(fields wizard.Fields, field string) string {
 	//Извлекаем из сообщения наши поля "промкод и активацию"
-	promoField := fields.FindField(fieldPromo)
-	capacityField := fields.FindField(fieldLenght)
-	confirmField := fields.FindField(fieldConfirmation)
+	fieldExtracted := fields.FindField(field)
 
-	if promoField == nil || confirmField == nil {
+	//Похоже бесполезная проверка, он всегда что-то вернет
+	if fieldExtracted == nil {
 		slog.Error("One of fields is nil", "error", "nil fields")
-		return "", "", "", ""
+		return ""
 	}
 
-	//Получаеем из нашего чата с помощью Wizard.Txt сообщени
-	var promoCode string
-	if p, ok := promoField.Data.(wizard.Txt); ok {
+	//Получаеем из нашего чата с помощью Wizard.Txt сообщения, конкретно тут ясное дело текст полученный из ответа
+	var fieldExtractedOut string
+	if p, ok := fieldExtracted.Data.(wizard.Txt); ok {
 		//Если это текст то присваиваем промокоду значение полученное
-		promoCode = p.Value
+		fieldExtractedOut = p.Value
 	}
 
-	var capacity string
-	//Получаеем из нашего чата с помощью Wizard.Txt сообщени
-	if cp, ok := capacityField.Data.(wizard.Txt); ok {
-		//Если это текст то присваиваем действию значение полученное
-		capacity = cp.Value
-	}
+	return fieldExtractedOut
+}
 
-	var lenght string
-	//Получаеем из нашего чата с помощью Wizard.Txt сообщени
-	if l, ok := capacityField.Data.(wizard.Txt); ok {
-		//Если это текст то присваиваем действию значение полученное
-		lenght = l.Value
+func strToInt(s string) (int, error) {
+	if s == "" {
+		return 0, fmt.Errorf("empty string")
 	}
-
-	var action string
-	//Получаеем из нашего чата с помощью Wizard.Txt сообщени
-	if c, ok := confirmField.Data.(wizard.Txt); ok {
-		//Если это текст то присваиваем действию значение полученное
-		action = c.Value
-	}
-
-	return promoCode, action, capacity, lenght
+	return strconv.Atoi(s)
 }
