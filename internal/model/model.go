@@ -8,8 +8,8 @@ import (
 // extractPromoInfo(fields wizard.Fields) в ./promo.go
 type Promo struct {
 	Code        string    `db:"code"`
-	BonusLength string    `db:"bonus_length"`
+	BonusLength int       `db:"bonus_length"`
 	Since       time.Time `db:"since"`
 	Until       time.Time `db:"until"`
-	Capacity    string    `db:"capacity"`
+	Capacity    int       `db:"capacity"`
 }

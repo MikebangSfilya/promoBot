@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"log/slog"
+	"strconv"
 
 	"github.com/MikebangSfilya/promoBot/internal/db/repo"
 	"github.com/MikebangSfilya/promoBot/internal/handlers/common"
@@ -102,13 +103,22 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 	//extract
 	promoCode := extractPromoInfo(fields, fieldPromo)
 	confirmAct := extractPromoInfo(fields, fieldConfirmation)
-	capAct := extractPromoInfo(fields, fieldCapacity)
-	lenght := extractPromoInfo(fields, fieldLenght)
+	capasityExtr := extractPromoInfo(fields, fieldCapacity)
+	lenghtExtr := extractPromoInfo(fields, fieldLenght)
+
+	capasity, err := strToInt(capasityExtr)
+	if err != nil {
+		return
+	}
+	lenght, err := strToInt(lenghtExtr)
+	if err != nil {
+		return
+	}
 
 	modelToRepo := models.Promo{
 		Code:        promoCode,
-		BonusLength: lenght,
-		Capacity:    capAct,
+		BonusLength: capasity,
+		Capacity:    lenght,
 	}
 
 	//Создание ответчика
@@ -123,7 +133,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 			return
 		}
 		if success {
-			reply(fmt.Sprintf("%s: %s, %s: %s, %s: %s",
+			reply(fmt.Sprintf("%s: %s, %s: %d, %s: %d",
 				fieldPromoCreated, promoCode,
 				fieldLenght, modelToRepo.BonusLength,
 				fieldCapacity, modelToRepo.Capacity))
@@ -156,4 +166,11 @@ func extractPromoInfo(fields wizard.Fields, field string) string {
 	}
 
 	return fieldExtractedOut
+}
+
+func strToInt(s string) (int, error) {
+	if s == "" {
+		return 0, fmt.Errorf("empty string")
+	}
+	return strconv.Atoi(s)
 }
