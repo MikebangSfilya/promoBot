@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/MikebangSfilya/promoBot/internal/db/repo"
 	"github.com/MikebangSfilya/promoBot/internal/handlers/common"
@@ -119,6 +120,8 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 		Code:        promoCode,
 		BonusLength: capasity,
 		Capacity:    lenght,
+		Since:       time.Now(),
+		Until:       setEndTime(nil),
 	}
 
 	//Создание ответчика
@@ -173,4 +176,13 @@ func strToInt(s string) (int, error) {
 		return 0, fmt.Errorf("empty string")
 	}
 	return strconv.Atoi(s)
+}
+
+// func to create a defolt time
+func setEndTime(t *time.Time) *time.Time {
+	if t == nil {
+		endTime := time.Now().Add(30 * 24 * time.Hour)
+		return &endTime
+	}
+	return t
 }
