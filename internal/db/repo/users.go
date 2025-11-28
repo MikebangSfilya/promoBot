@@ -7,6 +7,7 @@ import (
 	"math/rand"
 
 	"github.com/MikebangSfilya/promoBot/internal/db/dto"
+	models "github.com/MikebangSfilya/promoBot/internal/model"
 	"github.com/kozalosev/goSadTgBot/base"
 	"github.com/kozalosev/goSadTgBot/settings"
 )
@@ -51,7 +52,7 @@ func (service *UserService) ChangeLanguage(uid int64, lang settings.LangCode) er
 }
 
 // Еще одна заглушка которая в будущем будет реально работать
-func (service *UserService) CreatePromo(promo string) (bool, error) {
+func (service *UserService) CreatePromo(promoCode models.Promo) (bool, error) {
 
 	query := `
 	INSERT INTO Promo_codes
