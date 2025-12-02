@@ -32,7 +32,8 @@ const (
 	errUnknowComma   = "Неизвестная команда"
 	errToCreatePromo = "Ошибка при создание промокода"
 
-	unableToSave = "Невозможно сохранить прокод"
+	success = "success"
+	failure = "failure"
 )
 
 type PromoHandler struct {
