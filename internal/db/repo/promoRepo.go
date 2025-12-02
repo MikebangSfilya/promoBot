@@ -4,7 +4,6 @@ package repo
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 	"math/rand"
 
@@ -62,9 +61,18 @@ func (service *UserService) CreatePromo(promoCode models.PromoCode) error {
 	VALUES ($1, $2, $3, $4, $5)
 	`
 
-	if err := service.appEnv.Database.QueryRow(service.appEnv.Ctx, query).Scan(&promoCode.Code); err != nil {
-		slog.Error("Aleeeert", "op", err)
-		return fmt.Errorf("%s, %v", op, err)
+	_, err := service.appEnv.Database.Exec(
+		service.appEnv.Ctx,
+		query,
+		promoCode.Code,
+		promoCode.BonusLength,
+		promoCode.Since,
+		promoCode.Until,
+		promoCode.Capacity,
+	)
+	if err != nil {
+		slog.Error("faield to Exec", "errror", err)
+		return err
 	}
 
 	return nil
