@@ -6,7 +6,7 @@ import (
 
 // пока в str, вместо int, потом будет переделано как нужно как будет исправлена функция
 // extractPromoInfo(fields wizard.Fields) в ./promo.go
-type Promo struct {
+type PromoCode struct {
 	Code        string     `db:"code"`
 	BonusLength int        `db:"bonus_length"`
 	Since       time.Time  `db:"since"`

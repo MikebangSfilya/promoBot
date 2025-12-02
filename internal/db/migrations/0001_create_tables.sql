@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS Promo_Codes (
 );
 
 CREATE TABLE IF NOT EXISTS Promo_Code_Activations (
-    uid bigint REFERENCES Users(uid),
+    uid bigint NOT NULL,
     code varchar(16) REFERENCES Promo_Codes(code),
     affected_chats integer NOT NULL,
 

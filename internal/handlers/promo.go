@@ -116,7 +116,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 		return
 	}
 
-	modelToRepo := models.Promo{
+	modelToRepo := models.PromoCode{
 		Code:        promoCode,
 		BonusLength: capasity,
 		Capacity:    lenght,
@@ -129,20 +129,17 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 
 	switch confirmAct {
 	case actionCreate:
-		success, err := h.userService.CreatePromo(modelToRepo)
+		err := h.userService.CreatePromo(modelToRepo)
 		if err != nil {
 			slog.Error(errToCreatePromo, "error", err)
 			reply(errToCreatePromo)
 			return
 		}
-		if success {
-			reply(fmt.Sprintf("%s: %s, %s: %d, %s: %d",
-				fieldPromoCreated, promoCode,
-				fieldLenght, modelToRepo.BonusLength,
-				fieldCapacity, modelToRepo.Capacity))
-		} else {
-			reply(unableToSave)
-		}
+		reply(fmt.Sprintf("%s: %s, %s: %d, %s: %d",
+			fieldPromoCreated, promoCode,
+			fieldLenght, modelToRepo.BonusLength,
+			fieldCapacity, modelToRepo.Capacity))
+
 	case actionCancel:
 		reply(promoCanceled)
 	default:
