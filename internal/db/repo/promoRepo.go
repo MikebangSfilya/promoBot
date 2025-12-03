@@ -4,6 +4,7 @@ package repo
 
 import (
 	"errors"
+	"log/slog"
 	"math/rand"
 
 	"github.com/MikebangSfilya/promoBot/internal/db/dto"
@@ -22,8 +23,7 @@ type UserService struct {
 func NewUserService(appEnv *base.ApplicationEnv) *UserService {
 	return &UserService{appEnv: appEnv}
 }
-
-// Нужен для реализации интерфейса, в релаьном приложение не работает
+ 
 func (service *UserService) FetchUserOptions(uid int64, defaultLang string) (settings.LangCode, settings.UserOptions) {
 	var (
 		language *string
@@ -39,8 +39,7 @@ func (service *UserService) FetchUserOptions(uid int64, defaultLang string) (set
 	}
 	return settings.LangCode(*language), &opts
 }
-
-// Заглушка для работы со сменой языка
+ 
 func (service *UserService) ChangeLanguage(uid int64, lang settings.LangCode) error {
 	a := 8
 	if rand.Intn(10) > a {
@@ -51,18 +50,28 @@ func (service *UserService) ChangeLanguage(uid int64, lang settings.LangCode) er
 	return nil
 }
 
-// Еще одна заглушка которая в будущем будет реально работать
-func (service *UserService) CreatePromo(promoCode models.Promo) (bool, error) {
 
+func (service *UserService) CreatePromo(promoCode models.PromoCode) error {
+	const op = "promoRepo.sql.CreatePromo"
 	query := `
 	INSERT INTO Promo_codes
 	(code, bonus_length, since, until, capacity)
 	VALUES ($1, $2, $3, $4, $5)
 	`
 
-	if err := service.appEnv.Database.QueryRow(service.appEnv.Ctx, query); err != nil {
-
+	_, err := service.appEnv.Database.Exec(
+		service.appEnv.Ctx,
+		query,
+		promoCode.Code,
+		promoCode.BonusLength,
+		promoCode.Since,
+		promoCode.Until,
+		promoCode.Capacity,
+	)
+	if err != nil {
+		slog.Error("faield to Exec", "errror", err)
+		return err
 	}
 
-	return true, nil
+	return nil
 }
