@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
-	"time"
 
 	"github.com/MikebangSfilya/promoBot/internal/db/repo"
 	"github.com/MikebangSfilya/promoBot/internal/handlers/common"
@@ -61,19 +60,15 @@ func (h *PromoHandler) GetWizardEnv() *wizard.Env {
 }
 
 func (h *PromoHandler) GetWizardDescriptor() *wizard.FormDescriptor {
-	//Заполняем новое заполненное поле с помощью action
+
 	desc := wizard.NewWizardDescriptor(h.action)
 
-	//Добавляем "притвественное поле"
 	desc.AddField(fieldPromo, promoFieldsTrPrefix+fieldPromo)
 
-	//Размер пиписи
-	//Ндао будет потом сделать через мапку strings, но пока так
 	desc.AddField(fieldLenght, "Введите длину писи для создания промокода")
-	//активации
+
 	desc.AddField(fieldCapacity, "Введите кол-во активаций промокода")
 
-	//Инлайн добавление поля с кнопками активировать и отменить
 	confirm := desc.AddField(fieldConfirmation, textToCreate)
 	confirm.InlineKeyboardAnswers = []string{actionCreate, actionCancel}
 	return desc
@@ -86,17 +81,13 @@ func (*PromoHandler) GetCommands() []string {
 
 func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 
-	//Создание визарда
 	promoForm := wizard.NewWizard(h, 4)
 
-	//Создание пустых полей для данных
-	//Леня, если будешь смотреть можеь описать ниже нужно ли тут столько пустых, мб как-то можно лучше, возможн пойму раньше сам :-0
 	promoForm.AddEmptyField(fieldPromo, wizard.Text)
 	promoForm.AddEmptyField(fieldLenght, wizard.Text)
 	promoForm.AddEmptyField(fieldCapacity, wizard.Text)
 	promoForm.AddEmptyField(fieldConfirmation, wizard.Text)
 
-	//Переход к новому полю
 	promoForm.ProcessNextField(reqEnv, msg)
 
 }
@@ -117,15 +108,12 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 		return
 	}
 
-	modelToRepo := models.PromoCode{
-		Code:        promoCode,
-		BonusLength: capasity,
-		Capacity:    lenght,
-		Since:       time.Now(),
-		Until:       setEndTime(nil),
+	modelToRepo, err := models.New(promoCode, lenght, capasity, nil)
+	if err != nil {
+		fmt.Printf("failed to create model %v", err)
+		return
 	}
 
-	//Создание ответчика
 	reply := base.NewReplier(h.appEnv, reqenv, msg)
 
 	switch confirmAct {
@@ -150,19 +138,17 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 }
 
 func extractPromoInfo(fields wizard.Fields, field string) string {
-	//Извлекаем из сообщения наши поля "промкод и активацию"
+
 	fieldExtracted := fields.FindField(field)
 
-	//Похоже бесполезная проверка, он всегда что-то вернет
 	if fieldExtracted == nil {
 		slog.Error("One of fields is nil", "error", "nil fields")
 		return ""
 	}
 
-	//Получаеем из нашего чата с помощью Wizard.Txt сообщения, конкретно тут ясное дело текст полученный из ответа
 	var fieldExtractedOut string
 	if p, ok := fieldExtracted.Data.(wizard.Txt); ok {
-		//Если это текст то присваиваем промокоду значение полученное
+
 		fieldExtractedOut = p.Value
 	}
 
@@ -174,13 +160,4 @@ func strToInt(s string) (int, error) {
 		return 0, fmt.Errorf("empty string")
 	}
 	return strconv.Atoi(s)
-}
-
-// func to create a defolt time
-func setEndTime(t *time.Time) *time.Time {
-	if t == nil {
-		endTime := time.Now().Add(30 * 24 * time.Hour)
-		return &endTime
-	}
-	return t
 }

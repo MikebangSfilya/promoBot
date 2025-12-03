@@ -20,7 +20,10 @@ const (
 	enFlag = "🇺🇸"
 	ruCode = "ru"
 	ruFlag = "🇷🇺"
+	
+
 )
+
 
 // var supportedLangCodes = []string{enFlag, enCode, ruFlag, ruCode}
 

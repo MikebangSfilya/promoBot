@@ -1,10 +1,16 @@
 package models
 
 import (
+	"errors"
+	"strings"
 	"time"
 )
 
-// пока в str, вместо int, потом будет переделано как нужно как будет исправлена функция
+var (
+	errEmpryCode = errors.New("code is empty")
+	errZeroCap   = errors.New("the capacity cannot be less than zero")
+)
+
 // extractPromoInfo(fields wizard.Fields) в ./promo.go
 type PromoCode struct {
 	Code        string     `db:"code"`
@@ -12,4 +18,29 @@ type PromoCode struct {
 	Since       time.Time  `db:"since"`
 	Until       *time.Time `db:"until"`
 	Capacity    int        `db:"capacity"`
+}
+
+func New(code string, bonuesLen, capacity int, until *time.Time) (PromoCode, error) {
+
+	trimCode := strings.TrimSpace(code)
+	if trimCode == "" {
+		return PromoCode{}, errEmpryCode
+	}
+	if capacity < 0 {
+		return PromoCode{}, errZeroCap
+	}
+
+	var untilTime time.Time
+	if until == nil {
+		untilTime = time.Now().Add(30 * 24 * time.Hour)
+	} else {
+		untilTime = *until
+	}
+	return PromoCode{
+		Code:        trimCode,
+		BonusLength: bonuesLen,
+		Until:       &untilTime,
+		Capacity:    capacity,
+	}, nil
+
 }
