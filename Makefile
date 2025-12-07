@@ -1,16 +1,15 @@
-DOCKER_COMPOSE = docker-compose
-APP_NAME = promo-bot
-BINARY_NAME = bin/$(APP_NAME)
+# Configuration
+COMPOSE = docker-compose
+APP = promo-bot
+BIN = bin/$(APP)
+PG_CONTAINER = promo-postgresql
+PG_USER = test
+PG_DB = test
 
-.PHONY: build run deps test clean docker-build docker-up docker-down docker-logs docker-clean
-
-.DEFAULT_GOAL := build
-
-# Local development
+# Local Development 
 build: deps
-	go build -o $(BINARY_NAME) .
+	go build -o $(BIN) .
 
-#по сути это run не работает
 run:
 	go run .
 
@@ -24,48 +23,61 @@ test:
 clean:
 	rm -rf bin/
 
-# Docker commands
-docker-build:
-	$(DOCKER_COMPOSE) build
+# Docker
+compose-build:
+	$(COMPOSE) build
 
-docker-build-nocache:
-	$(DOCKER_COMPOSE) build --no-cache
+compose-build-nocache:
+	$(COMPOSE) build --no-cache
 
-docker-up:
-	$(DOCKER_COMPOSE) up -d
+up:
+	$(COMPOSE) up -d
 
-docker-down:
-	$(DOCKER_COMPOSE) down
+down:
+	$(COMPOSE) down
 
-docker-logs:
-	$(DOCKER_COMPOSE) logs -f
+logs:
+	$(COMPOSE) logs -f
 
-docker-logs-bot:
-	$(DOCKER_COMPOSE) logs -f bot
+logs-bot:
+	$(COMPOSE) logs -f bot
 
-docker-restart:
-	$(DOCKER_COMPOSE) restart
+restart:
+	$(COMPOSE) restart
 
-docker-clean:
-	$(DOCKER_COMPOSE) down -v --remove-orphans
+clean-volumes:
+	$(COMPOSE) down -v --remove-orphans
 
-docker-ps:
-	$(DOCKER_COMPOSE) ps
+ps:
+	$(COMPOSE) ps
 
-# Combined workflows
-dev: docker-up docker-logs-bot
+# Database
+db:
+	docker exec -it $(PG_CONTAINER) psql -U $(PG_USER) -d $(PG_DB)
 
-deploy: docker-build-nocache docker-up
+tables:
+	docker exec $(PG_CONTAINER) psql -U $(PG_USER) -d $(PG_DB) -c "\dt"
 
-stop: docker-down
+databases:
+	docker exec $(PG_CONTAINER) psql -U $(PG_USER) -d $(PG_DB) -c "\l"
 
-status: docker-ps
-
-reset: docker-clean docker-build-nocache docker-up
-
-# Utility commands
-env-check:
-	@if [ ! -f .env ]; then \
-		echo "Error: .env file not found"; \
+query:
+	@if [ -z "$(SQL)" ]; then \
+		echo "Usage: make query SQL=\"SELECT * FROM table;\""; \
 		exit 1; \
 	fi
+	docker exec $(PG_CONTAINER) psql -U $(PG_USER) -d $(PG_DB) -c "$(SQL)"
+
+# Workflows
+dev: up logs-bot
+
+deploy: compose-build-nocache up
+
+reset: clean-volumes compose-build-nocache up
+
+# Phony Targets
+.PHONY: build run deps test clean \
+        compose-build compose-build-nocache up down logs logs-bot \
+        restart clean-volumes ps \
+        db tables databases query exec-sql dump \
+        dev deploy reset

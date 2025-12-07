@@ -13,11 +13,11 @@ var (
 
 // extractPromoInfo(fields wizard.Fields) в ./promo.go
 type PromoCode struct {
-	Code        string     `db:"code"`
-	BonusLength int        `db:"bonus_length"`
-	Since       time.Time  `db:"since"`
-	Until       *time.Time `db:"until"`
-	Capacity    int        `db:"capacity"`
+	Code        string
+	BonusLength int
+	Since       time.Time
+	Until       *time.Time
+	Capacity    int
 }
 
 func New(code string, bonuesLen, capacity int, until *time.Time) (PromoCode, error) {
