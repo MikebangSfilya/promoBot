@@ -42,7 +42,7 @@ type PromoHandler struct {
 	appEnv       *base.ApplicationEnv
 	stateStorage wizard.StateStorage
 
-	userService *repo.UserService //TODO переделать в ирл реализацию, заглушка
+	userService *repo.UserService
 }
 
 func NewPromoHanlder(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage) *PromoHandler {
@@ -76,7 +76,7 @@ func (h *PromoHandler) GetWizardDescriptor() *wizard.FormDescriptor {
 
 // Наши поддерживаемые команды
 func (*PromoHandler) GetCommands() []string {
-	return []string{"promo", "code", "generate", "start"}
+	return []string{"promo", "code", "generate"}
 }
 
 func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
@@ -111,7 +111,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 	capasityExtr := extractPromoInfo(fields, fieldCapacity)
 	capasity, err := strToInt(capasityExtr)
 	if err != nil {
-		reply("bad request lenght cap")
+		reply("bad request cap")
 		return
 	}
 

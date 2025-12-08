@@ -20,10 +20,7 @@ const (
 	enFlag = "🇺🇸"
 	ruCode = "ru"
 	ruFlag = "🇷🇺"
-	
-
 )
-
 
 // var supportedLangCodes = []string{enFlag, enCode, ruFlag, ruCode}
 
@@ -75,8 +72,7 @@ func (h *LanguageHandler) Handle(reqenv *base.RequestEnv, msg *tgbotapi.Message)
 }
 
 func (h *LanguageHandler) changeLangAction(reqenv *base.RequestEnv, msg *tgbotapi.Message, fields wizard.Fields) {
-	langFlag := fields.FindField(fieldLanguage).Data.(string)
-	langCode := langFlagToCode(langFlag)
+	langCode := langFlagToCode(ruFlag)
 	reply := base.NewReplier(h.appEnv, reqenv, msg)
 
 	err := h.userService.ChangeLanguage(msg.From.ID, settings.LangCode(langCode))
@@ -88,7 +84,6 @@ func (h *LanguageHandler) changeLangAction(reqenv *base.RequestEnv, msg *tgbotap
 			Error(err)
 		reply(failure)
 	} else {
-
 		reply(success)
 	}
 }
