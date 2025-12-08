@@ -76,7 +76,7 @@ func (h *PromoHandler) GetWizardDescriptor() *wizard.FormDescriptor {
 
 // Наши поддерживаемые команды
 func (*PromoHandler) GetCommands() []string {
-	return []string{"promo", "code", "generate"}
+	return []string{"promo", "code", "generate", "start"}
 }
 
 func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
@@ -93,34 +93,38 @@ func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 }
 
 func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fields wizard.Fields) {
+
+	reply := base.NewReplier(h.appEnv, reqenv, msg)
+
 	//extract
 	promoCode := extractPromoInfo(fields, fieldPromo)
 	confirmAct := extractPromoInfo(fields, fieldConfirmation)
-	capasityExtr := extractPromoInfo(fields, fieldCapacity)
-	lenghtExtr := extractPromoInfo(fields, fieldLenght)
 
-	capasity, err := strToInt(capasityExtr)
+	lenghtExtr := extractPromoInfo(fields, fieldLenght)
+	lenght, err := strToInt(lenghtExtr)
+
 	if err != nil {
+		reply("bad request lenght")
 		return
 	}
-	lenght, err := strToInt(lenghtExtr)
+
+	capasityExtr := extractPromoInfo(fields, fieldCapacity)
+	capasity, err := strToInt(capasityExtr)
 	if err != nil {
+		reply("bad request lenght cap")
 		return
 	}
 
 	modelToRepo, err := models.New(promoCode, lenght, capasity, nil)
 	if err != nil {
-		fmt.Printf("failed to create model %v", err)
+		reply("failed to create model: " + err.Error())
 		return
 	}
-
-	reply := base.NewReplier(h.appEnv, reqenv, msg)
 
 	switch confirmAct {
 	case actionCreate:
 		err := h.userService.CreatePromo(modelToRepo)
 		if err != nil {
-			slog.Error(errToCreatePromo, "error", err)
 			reply(errToCreatePromo)
 			return
 		}

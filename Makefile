@@ -35,6 +35,8 @@ up:
 
 down:
 	$(COMPOSE) down
+downfull:
+	$(COMPOSE) down -v
 
 logs:
 	$(COMPOSE) logs -f
@@ -77,7 +79,7 @@ reset: clean-volumes compose-build-nocache up
 
 # Phony Targets
 .PHONY: build run deps test clean \
-        compose-build compose-build-nocache up down logs logs-bot \
+        compose-build compose-build-nocache up down downfull logs logs-bot \
         restart clean-volumes ps \
         db tables databases query exec-sql dump \
         dev deploy reset

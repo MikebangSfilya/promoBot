@@ -29,7 +29,7 @@ import (
 )
 
 var (
-	locpool            = loc.NewPool("en")
+	locpool            = loc.NewPool("ru")
 	supportedLanguages = []string{"en", "ru"}
 )
 
@@ -38,7 +38,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	fmt.Println("NIGGGGGGERS")
+	fmt.Println("STARTSTARTSTART")
 
 	metrics.AddHttpHandlerForMetrics()
 

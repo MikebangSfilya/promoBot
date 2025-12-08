@@ -30,8 +30,14 @@ func TestExtractPromoInfo(t *testing.T) {
 		{
 			name:     "capacity field",
 			field:    fieldCapacity,
-			data:     wizard.Txt{Value: "CAPACITY_100"},
-			expected: "CAPACITY_100",
+			data:     wizard.Txt{Value: "100"},
+			expected: "100",
+		},
+		{
+			name:     "lenght field",
+			field:    fieldLenght,
+			data:     wizard.Txt{Value: "100"},
+			expected: "100",
 		},
 	}
 
