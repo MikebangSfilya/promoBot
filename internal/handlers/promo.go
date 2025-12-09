@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strconv"
 
+	"github.com/MikebangSfilya/promoBot/internal/db/dto"
 	"github.com/MikebangSfilya/promoBot/internal/db/repo"
 	"github.com/MikebangSfilya/promoBot/internal/handlers/common"
 	models "github.com/MikebangSfilya/promoBot/internal/model"
@@ -80,6 +81,9 @@ func (*PromoHandler) GetCommands() []string {
 }
 
 func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
+
+	role := reqEnv.Options.(*dto.UserOptions).Role
+	fmt.Println("role is -->", role)
 
 	promoForm := wizard.NewWizard(h, 4)
 
