@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/MikebangSfilya/promoBot/internal/config"
 	"log"
 	"os"
 	"os/signal"
@@ -12,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/MikebangSfilya/promoBot/internal/db/repo"
 	"github.com/MikebangSfilya/promoBot/internal/handlers"
 	tgbotapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/go-redis/redis/v8"
@@ -69,7 +69,7 @@ func main() {
 		Ctx:              ctx,
 		MessageHandlers:  messageHandlers,
 		CallbackHandlers: callbackHandlers,
-		Settings:         repo.NewUserService(appenv),
+		Settings:         config.NewUsersConfig(),
 		LangPool:         locpool,
 		API:              api,
 		StateStorage:     stateStorage,
@@ -143,10 +143,8 @@ func establishConnections(ctx context.Context) (stateStorage wizard.StateStorage
 }
 
 func initHandlers(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage) (messageHandlers []base.MessageHandler, callbackHandlers []base.CallbackHandler) {
-	languageHandler := handlers.NewLanguageHandler(appEnv, stateStorage)
 	messageHandlers = []base.MessageHandler{
 		// handlers.NewHelpHandler(languageHandler),
-		languageHandler,
 		handlers.NewPromoHanlder(appEnv, stateStorage),
 		// handlers.NewNotPrivateChatFallbackHandler(stateStorage),
 	}
