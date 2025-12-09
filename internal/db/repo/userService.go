@@ -36,6 +36,6 @@ func (service *UserService) FetchUserOptions(uid int64, defaultLang string) (set
 
 func (service *UserService) ChangeLanguage(uid int64, lang settings.LangCode) error {
 	_, err := service.appEnv.Database.Exec(service.appEnv.Ctx,
-		"UPDATE Users SET language = $2 WHERE uid = $1", uid, lang)
+		"UPDATE Users_promo SET language = $2 WHERE uid = $1", uid, lang)
 	return err
 }
