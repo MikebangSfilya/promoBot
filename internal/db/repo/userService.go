@@ -1,10 +1,14 @@
 package repo
 
 import (
+	"errors"
+
 	"github.com/MikebangSfilya/promoBot/internal/db/dto"
 	"github.com/kozalosev/goSadTgBot/base"
 	"github.com/kozalosev/goSadTgBot/settings"
 )
+
+var NoRowsWereAffected = errors.New("no rows were affected")
 
 // UserService is a repository for the Users table.
 type UserService struct {
@@ -21,9 +25,8 @@ func (service *UserService) FetchUserOptions(uid int64, defaultLang string) (set
 		opts     dto.UserOptions
 	)
 	if err := service.appEnv.Database.QueryRow(service.appEnv.Ctx,
-		"SELECT language, banned, role FROM Users WHERE uid = $1", uid).
+		"SELECT language, banned, role FROM Users_promo WHERE uid = $1", uid).
 		Scan(&language, &opts.Banned, &opts.Role); err != nil {
-		// panic(err)
 	}
 	if language == nil {
 		language = &defaultLang
@@ -32,5 +35,7 @@ func (service *UserService) FetchUserOptions(uid int64, defaultLang string) (set
 }
 
 func (service *UserService) ChangeLanguage(uid int64, lang settings.LangCode) error {
-	return nil
+	_, err := service.appEnv.Database.Exec(service.appEnv.Ctx,
+		"UPDATE Users SET language = $2 WHERE uid = $1", uid, lang)
+	return err
 }

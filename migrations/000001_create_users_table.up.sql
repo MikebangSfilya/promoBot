@@ -11,8 +11,8 @@ EXCEPTION
 END $$;
 
 
-CREATE TABLE IF NOT EXISTS Users(
-    uid bigint PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS Users_promo(
+    uid bigint PRIMARY KEY, 
     name varchar(255) NOT NULL,
     language lang,
     role user_role NOT NULL DEFAULT 'user',

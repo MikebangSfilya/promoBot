@@ -8,7 +8,8 @@ import (
 	"github.com/MikebangSfilya/promoBot/internal/db/dto"
 	"github.com/MikebangSfilya/promoBot/internal/db/repo"
 	"github.com/MikebangSfilya/promoBot/internal/handlers/common"
-	models "github.com/MikebangSfilya/promoBot/internal/model"
+	"github.com/MikebangSfilya/promoBot/internal/model"
+
 	tgbotapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/kozalosev/goSadTgBot/base"
 	"github.com/kozalosev/goSadTgBot/wizard"
@@ -43,14 +44,14 @@ type PromoHandler struct {
 	appEnv       *base.ApplicationEnv
 	stateStorage wizard.StateStorage
 
-	userService *repo.UserService
+	PromoService *repo.UserService
 }
 
 func NewPromoHanlder(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage) *PromoHandler {
 	h := &PromoHandler{
 		appEnv:       appEnv,
 		stateStorage: stateStorage,
-		userService:  repo.NewUserService(appEnv),
+		PromoService: repo.NewUserService(appEnv),
 	}
 	h.HandlerRefForTrait = h
 	return h
@@ -121,7 +122,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 		return
 	}
 
-	modelToRepo, err := models.New(promoCode, lenght, capasity, nil)
+	modelToRepo, err := model.New(promoCode, lenght, capasity, nil)
 	if err != nil {
 		reply("failed to create model: " + err.Error())
 		return
@@ -129,7 +130,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 
 	switch confirmAct {
 	case actionCreate:
-		err := h.userService.CreatePromo(modelToRepo)
+		err := h.PromoService.CreatePromo(modelToRepo)
 		if err != nil {
 			reply(errToCreatePromo)
 			return

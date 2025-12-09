@@ -34,6 +34,7 @@ func init() {
 		"commands.language.fields.language": "Выберите свой язык:",
 		"commands.promo.fields.promo":       "Введите промокод новым сообщением",
 
+		"success": "👍🏼",
 		"failure": "Что-то пошло не так...",
 
 		"user":   "обычный",
