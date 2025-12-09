@@ -84,16 +84,18 @@ func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 
 	role := reqEnv.Options.(*dto.UserOptions).Role
 	fmt.Println("role is -->", role)
+	if role == dto.Admin {
+		promoForm := wizard.NewWizard(h, 4)
 
-	promoForm := wizard.NewWizard(h, 4)
+		promoForm.AddEmptyField(fieldPromo, wizard.Text)
+		promoForm.AddEmptyField(fieldLenght, wizard.Text)
+		promoForm.AddEmptyField(fieldCapacity, wizard.Text)
+		promoForm.AddEmptyField(fieldConfirmation, wizard.Text)
 
-	promoForm.AddEmptyField(fieldPromo, wizard.Text)
-	promoForm.AddEmptyField(fieldLenght, wizard.Text)
-	promoForm.AddEmptyField(fieldCapacity, wizard.Text)
-	promoForm.AddEmptyField(fieldConfirmation, wizard.Text)
-
-	promoForm.ProcessNextField(reqEnv, msg)
-
+		promoForm.ProcessNextField(reqEnv, msg)
+	} else {
+		return
+	}
 }
 
 func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fields wizard.Fields) {

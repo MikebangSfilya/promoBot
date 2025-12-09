@@ -5,6 +5,19 @@ BIN = bin/$(APP)
 PG_CONTAINER = promo-postgresql
 PG_USER = test
 PG_DB = test
+DB_URL=postgres://test:test@localhost:5432/test?sslmode=disable
+
+.PHONY: migrate-up migrate-down migrate-force migrate-create migrate-status
+tables:
+	docker exec promo-postgresql psql -U test -d test -c "\dt"
+
+migrate-up:
+	migrate -path ./migrations -database "$(DB_URL)" up
+migrate-down:
+	migrate -path ./migrations -database "$(DB_URL)" down 1
+
+
+
 
 # Local Development 
 build: deps
