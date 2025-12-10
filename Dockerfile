@@ -34,6 +34,8 @@ RUN apk add --no-cache ca-certificates
 COPY --from=builder /main /app/main
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/group /etc/group
+COPY --from=builder /app/users.yaml /app/users.yaml
+
 
 USER appuser:appuser
 

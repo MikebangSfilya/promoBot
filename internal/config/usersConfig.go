@@ -1,10 +1,11 @@
 package config
 
 import (
+	"os"
+
 	"github.com/kozalosev/goSadTgBot/settings"
 	"github.com/samber/lo"
-	"github.com/stretchr/testify/assert/yaml"
-	"os"
+	"gopkg.in/yaml.v3"
 )
 
 type UsersConfig struct {
@@ -12,7 +13,7 @@ type UsersConfig struct {
 }
 
 func NewUsersConfig() *UsersConfig {
-	file, err := os.ReadFile("users.yaml")
+	file, err := os.ReadFile("/app/users.yaml")
 	if err != nil {
 		panic("failed to read users.yaml file")
 	}

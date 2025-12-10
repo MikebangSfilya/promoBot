@@ -4,9 +4,18 @@ import (
 	"log/slog"
 
 	models "github.com/MikebangSfilya/promoBot/internal/model"
+	"github.com/kozalosev/goSadTgBot/base"
 )
 
-func (service *UserService) CreatePromo(promoCode models.PromoCode) error {
+type Promo struct {
+	appEnv *base.ApplicationEnv
+}
+
+func NewPromo(appEnv *base.ApplicationEnv) *Promo {
+	return &Promo{appEnv: appEnv}
+}
+
+func (p *Promo) CreatePromo(promoCode models.PromoCode) error {
 	const op = "promoRepo.sql.CreatePromo"
 	query := `
 	INSERT INTO Promo_codes
@@ -14,8 +23,8 @@ func (service *UserService) CreatePromo(promoCode models.PromoCode) error {
 	VALUES ($1, $2, $3, $4, $5)
 	`
 
-	_, err := service.appEnv.Database.Exec(
-		service.appEnv.Ctx,
+	_, err := p.appEnv.Database.Exec(
+		p.appEnv.Ctx,
 		query,
 		promoCode.Code,
 		promoCode.BonusLength,

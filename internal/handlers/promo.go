@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"strconv"
 
-	"github.com/MikebangSfilya/promoBot/internal/db/dto"
+	"github.com/MikebangSfilya/promoBot/internal/config"
 	"github.com/MikebangSfilya/promoBot/internal/db/repo"
 	"github.com/MikebangSfilya/promoBot/internal/handlers/common"
 	"github.com/MikebangSfilya/promoBot/internal/model"
@@ -32,9 +32,6 @@ const (
 	promoCanceled    = "Создание промокода отменено"
 	errUnknowComma   = "Неизвестная команда"
 	errToCreatePromo = "Ошибка при создание промокода"
-
-	success = "success"
-	failure = "failure"
 )
 
 type PromoHandler struct {
@@ -44,14 +41,14 @@ type PromoHandler struct {
 	appEnv       *base.ApplicationEnv
 	stateStorage wizard.StateStorage
 
-	PromoService *repo.UserService
+	PromoService *repo.Promo
 }
 
 func NewPromoHanlder(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage) *PromoHandler {
 	h := &PromoHandler{
 		appEnv:       appEnv,
 		stateStorage: stateStorage,
-		PromoService: repo.NewUserService(appEnv),
+		PromoService: repo.NewPromo(appEnv),
 	}
 	h.HandlerRefForTrait = h
 	return h
@@ -83,9 +80,9 @@ func (*PromoHandler) GetCommands() []string {
 
 func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 
-	role := reqEnv.Options.(*dto.UserOptions).Role
+	role := reqEnv.Options.(config.UserOptions).Role
 	fmt.Println("role is -->", role)
-	if role == dto.Admin {
+	if role == config.Admin {
 		promoForm := wizard.NewWizard(h, 4)
 
 		promoForm.AddEmptyField(fieldPromo, wizard.Text)
