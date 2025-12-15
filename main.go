@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/MikebangSfilya/promoBot/internal/config"
 	"log"
 	"os"
 	"os/signal"
+
+	"github.com/MikebangSfilya/promoBot/internal/config"
 
 	"strings"
 	"sync"

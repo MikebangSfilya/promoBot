@@ -3,7 +3,7 @@ package repo
 import (
 	"errors"
 
-	"github.com/MikebangSfilya/promoBot/internal/db/dto"
+	"github.com/kozalosev/!post!suggester!bot/db/dto"
 	"github.com/kozalosev/goSadTgBot/base"
 	"github.com/kozalosev/goSadTgBot/settings"
 )

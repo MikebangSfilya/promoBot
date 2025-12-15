@@ -1,3 +1,0 @@
-DROP TABLE IF EXISTS Users_promo;
-DROP TYPE IF EXISTS lang;
-DROP TYPE IF EXISTS user_role;
