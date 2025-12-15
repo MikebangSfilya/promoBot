@@ -51,7 +51,8 @@ func TestNewModel(t *testing.T) {
 			promocode: "promocodeTest",
 			length:    50,
 			capacity:  0,
-			wantErr:   false,
+			wantErr:   true,
+			err:       errZeroCap,
 		},
 		{
 			name:      "minus_capacity",
@@ -67,7 +68,7 @@ func TestNewModel(t *testing.T) {
 			length:    0,
 			capacity:  0,
 			wantErr:   true,
-			err:       errZeroLenght,
+			err:       errZeroCap,
 		},
 		{
 			name:      "minus_lenght",

@@ -11,6 +11,7 @@ var (
 	errEmpryCode  = errors.New("code is empty")
 	errMinusCap   = errors.New("the capacity cannot be less than zero")
 	errZeroLenght = errors.New("Bonus lenght cant be zero")
+	errZeroCap    = errors.New("capacity cant be zero")
 )
 
 // extractPromoInfo(fields wizard.Fields) в ./promo.go
@@ -39,8 +40,11 @@ func NewPromo(code string, bonusLen, capacity int, until *time.Time) (PromoCode,
 	if trimCode == "" {
 		return PromoCode{}, errEmpryCode
 	}
-	if capacity < 0 {
+	switch {
+	case capacity < 0:
 		return PromoCode{}, errMinusCap
+	case capacity == 0:
+		return PromoCode{}, errZeroCap
 	}
 	if bonusLen == 0 {
 		return PromoCode{}, errZeroLenght
