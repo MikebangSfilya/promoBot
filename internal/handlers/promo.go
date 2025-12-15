@@ -119,7 +119,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 		return
 	}
 
-	modelToRepo, err := model.New(promoCode, lenght, capasity, nil)
+	modelToRepo, err := model.NewPromo(promoCode, lenght, capasity, nil)
 	if err != nil {
 		reply("failed to create model: " + err.Error())
 		return

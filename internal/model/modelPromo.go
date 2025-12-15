@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -21,7 +22,18 @@ type PromoCode struct {
 	Capacity    int
 }
 
-func New(code string, bonusLen, capacity int, until *time.Time) (PromoCode, error) {
+type ResponceCode struct {
+	Code        string
+	BonusLength int
+	Capacity    int
+}
+
+func (rc ResponceCode) String() string {
+	return fmt.Sprintf("%s — %d см (%d активаций)",
+		rc.Code, rc.BonusLength, rc.Capacity)
+}
+
+func NewPromo(code string, bonusLen, capacity int, until *time.Time) (PromoCode, error) {
 
 	trimCode := strings.TrimSpace(code)
 	if trimCode == "" {

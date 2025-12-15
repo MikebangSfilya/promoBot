@@ -3,6 +3,7 @@ package repo
 import (
 	"log/slog"
 
+	"github.com/MikebangSfilya/promoBot/internal/model"
 	models "github.com/MikebangSfilya/promoBot/internal/model"
 	"github.com/kozalosev/goSadTgBot/base"
 )
@@ -38,4 +39,34 @@ func (p *Promo) CreatePromo(promoCode models.PromoCode) error {
 	}
 
 	return nil
+}
+
+func (p *Promo) GetTable() ([]model.ResponceCode, error) {
+	query := `
+	SELECT code, bonus_length, capacity
+    FROM promo_codes
+    ORDER BY capacity;
+	`
+	rows, err := p.appEnv.Database.Query(p.appEnv.Ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var promo []model.ResponceCode
+
+	for rows.Next() {
+		var prom model.ResponceCode
+		err := rows.Scan(
+			&prom.Code,
+			&prom.BonusLength,
+			&prom.Capacity,
+		)
+		if err != nil {
+			return nil, err
+		}
+		promo = append(promo, prom)
+	}
+
+	return promo, rows.Err()
 }
