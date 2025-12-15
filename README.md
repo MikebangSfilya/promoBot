@@ -13,5 +13,7 @@
 - [x] Все что выше попробу реализовать через структуру в `internal/model`. Нужно через action проложить в структуры, и wizard Description
 - [x] Переделать функцию `extractPromoInfo(fields wizard.Fields) (string, string, string, string)`, сейчас это дикий костыль на 4 возвращаемых значения. Переделаю в `extractPromoInfo(fields wizard.Fields, fieldName string) (string)`
 - [x] Развернуть БД
+- [ ] не сохранять нулевые значения в базу
+- [ ] реализация стаститики
 - [ ] `Вообще, я потом тебя ещё попрошу сделать селекты из базы, чтобы список промиков получать и информацию по коду`
 [https://t.me/kozaloru_chat/27070]
