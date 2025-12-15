@@ -82,7 +82,7 @@ func TestNewModel(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if !tc.wantErr {
 
-				promo, err := New(tc.promocode, tc.length, tc.capacity, nil)
+				promo, err := NewPromo(tc.promocode, tc.length, tc.capacity, nil)
 				var baseTime = time.Now().Add(30 * 24 * time.Hour)
 
 				assert.NoError(t, err)
@@ -92,7 +92,7 @@ func TestNewModel(t *testing.T) {
 				require.Equal(t, promo.Capacity, tc.capacity)
 				require.WithinDuration(t, *promo.Until, baseTime, time.Second)
 			} else {
-				promo, err := New(tc.promocode, tc.length, tc.capacity, nil)
+				promo, err := NewPromo(tc.promocode, tc.length, tc.capacity, nil)
 				require.Error(t, err)
 				assert.NotNil(t, promo)
 				require.EqualError(t, err, tc.err.Error())
