@@ -77,6 +77,8 @@ func main() {
 		DB:               db,
 	}
 
+	fmt.Println("----->", config.NewUsersConfig())
+
 	if wasPopulated := wizard.PopulateWizardDescriptors(messageHandlers); !wasPopulated {
 		log.Fatal()
 	}

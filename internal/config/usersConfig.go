@@ -9,7 +9,7 @@ import (
 )
 
 type UsersConfig struct {
-	Users []User
+	users []User
 }
 
 func NewUsersConfig() *UsersConfig {
@@ -24,12 +24,12 @@ func NewUsersConfig() *UsersConfig {
 	if err := yaml.Unmarshal(file, &cfg); err != nil {
 		panic("failed to parse users.yaml file")
 	}
-	return &UsersConfig{Users: cfg.Users}
+	return &UsersConfig{users: cfg.Users}
 }
 
 func (u *UsersConfig) FetchUserOptions(uid int64, defaultLang string) (settings.LangCode, settings.UserOptions) {
 	userId := UserId(uid)
-	user, found := lo.Find(u.Users, func(user User) bool { return user.UID == userId })
+	user, found := lo.Find(u.users, func(user User) bool { return user.UID == userId })
 	if !found {
 		return settings.LangCode(defaultLang), UserOptions{}
 	}
