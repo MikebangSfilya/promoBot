@@ -41,7 +41,3 @@ USER appuser:appuser
 EXPOSE 9091
 
 ENTRYPOINT ["/app/main"]
-
-LABEL org.opencontainers.image.description="Promo Bot"
-LABEL org.opencontainers.image.licenses=MIT
-LABEL org.opencontainers.image.source="https://github.com/MikebangSfilya/promoBot"

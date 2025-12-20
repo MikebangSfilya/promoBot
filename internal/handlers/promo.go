@@ -23,7 +23,7 @@ const (
 	fieldConfirmation = "confirmation"
 	fieldLength       = "length"
 	fieldCapacity     = "capacity"
-	fieldPromoCreated = "fieldPromoCreated "
+	fieldPromoCreated = "fieldPromoCreated"
 
 	actionCreate = "actionCreate"
 	actionCancel = "actionCancel"
