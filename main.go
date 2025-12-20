@@ -77,8 +77,6 @@ func main() {
 		DB:               db,
 	}
 
-	fmt.Println("----->", config.NewUsersConfig())
-
 	if wasPopulated := wizard.PopulateWizardDescriptors(messageHandlers); !wasPopulated {
 		log.Fatal()
 	}
@@ -87,7 +85,7 @@ func main() {
 		wg         sync.WaitGroup
 		wasStopped bool
 	)
-	//Graceful shot виидмо
+
 	if bot.Debug {
 		if _, err := bot.Request(tgbotapi.DeleteWebhookConfig{}); err != nil {
 			panic(err)
@@ -149,12 +147,11 @@ func initHandlers(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage)
 	messageHandlers = []base.MessageHandler{
 		handlers.NewGetHanlde(appEnv, stateStorage),
 		handlers.NewPromoHanlder(appEnv, stateStorage),
-		// handlers.NewNotPrivateChatFallbackHandler(stateStorage),
 	}
 	callbackHandlers = []base.CallbackHandler{
 		// handlers.NewRevokeCallbackHandler(appEnv),
 	}
-	// metrics.RegisterMessageHandlerCounters(messageHandlers...)
+	metrics.RegisterMessageHandlerCounters(messageHandlers...)
 	return
 }
 
