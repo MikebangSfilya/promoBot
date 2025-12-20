@@ -35,7 +35,7 @@ const (
 
 type PromoHandler struct {
 	base.CommandHandlerTrait
-	common.GroupCommandTrait
+	common.PrivateCommandTrait
 
 	appEnv       *base.ApplicationEnv
 	stateStorage wizard.StateStorage

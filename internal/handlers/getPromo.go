@@ -7,32 +7,22 @@ import (
 	"github.com/MikebangSfilya/promoBot/internal/handlers/common"
 	tgbotapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/kozalosev/goSadTgBot/base"
-	"github.com/kozalosev/goSadTgBot/wizard"
 )
+
+var noPromo = "noPromo"
 
 type GetHandle struct {
 	base.CommandHandlerTrait
-	common.GroupCommandTrait
+	common.PrivateCommandTrait
 
-	appEnv       *base.ApplicationEnv
-	stateStorage wizard.StateStorage
+	appEnv *base.ApplicationEnv
 
 	PromoService *repo.Promo
 }
 
-func (h *GetHandle) GetWizardEnv() *wizard.Env {
-	return wizard.NewEnv(h.appEnv, h.stateStorage)
-}
-
-func (h *GetHandle) GetWizardDescriptor() *wizard.FormDescriptor {
-	desc := wizard.NewWizardDescriptor(h.action)
-	return desc
-}
-
-func NewGetHanlde(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage) *GetHandle {
+func NewGetHandle(appEnv *base.ApplicationEnv) *GetHandle {
 	h := &GetHandle{
 		appEnv:       appEnv,
-		stateStorage: stateStorage,
 		PromoService: repo.NewPromo(appEnv),
 	}
 	h.HandlerRefForTrait = h
@@ -44,28 +34,24 @@ func (*GetHandle) GetCommands() []string {
 }
 
 func (h *GetHandle) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
-	h.action(reqEnv, msg, nil)
-}
-
-func (h *GetHandle) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fields wizard.Fields) {
-	reply := base.NewReplier(h.appEnv, reqenv, msg)
+	reply := base.NewReplier(h.appEnv, reqEnv, msg)
 	promoCodes, err := h.PromoService.GetTable()
 	if err != nil {
-		reply("fail")
+		reply("failure")
 		return
 	}
 
 	if len(promoCodes) == 0 {
-		reply("Нет промокодов в базе")
+		reply(noPromo)
 		return
 	}
 
+	//TODO: переделать в нормальный вид
 	response := "Промокоды: \n\n"
 	for i, promo := range promoCodes {
 		response += fmt.Sprintf("%d. %s \n", i+1, promo.String())
 	}
-	response += fmt.Sprintf("\n Всего: %d промокодов", len(promoCodes))
+	response += fmt.Sprintf("\nВсего: %d промокодов", len(promoCodes))
 
 	reply(response)
-
 }

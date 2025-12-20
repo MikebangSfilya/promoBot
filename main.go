@@ -145,7 +145,7 @@ func establishConnections(ctx context.Context) (stateStorage wizard.StateStorage
 
 func initHandlers(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage) (messageHandlers []base.MessageHandler, callbackHandlers []base.CallbackHandler) {
 	messageHandlers = []base.MessageHandler{
-		handlers.NewGetHanlde(appEnv, stateStorage),
+		handlers.NewGetHandle(appEnv),
 		handlers.NewPromoHanlder(appEnv, stateStorage),
 	}
 	callbackHandlers = []base.CallbackHandler{
