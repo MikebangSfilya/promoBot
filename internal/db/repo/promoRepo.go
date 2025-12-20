@@ -19,10 +19,10 @@ func NewPromo(appEnv *base.ApplicationEnv) *Promo {
 func (p *Promo) CreatePromo(promoCode models.PromoCode) error {
 	const op = "promoRepo.sql.CreatePromo"
 	query := `
-	INSERT INTO Promo_codes
-	(code, bonus_length, since, until, capacity)
-	VALUES ($1, $2, $3, $4, $5)
-	`
+		INSERT INTO Promo_codes
+		(code, bonus_length, since, until, capacity)
+		VALUES ($1, $2, $3, $4, $5)
+		`
 
 	_, err := p.appEnv.Database.Exec(
 		p.appEnv.Ctx,
@@ -43,10 +43,10 @@ func (p *Promo) CreatePromo(promoCode models.PromoCode) error {
 
 func (p *Promo) GetTable() ([]model.ResponceCode, error) {
 	query := `
-	SELECT code, bonus_length, capacity
-    FROM promo_codes
-    ORDER BY capacity;
-	`
+		SELECT code, bonus_length, capacity
+		FROM promo_codes
+		ORDER BY capacity;
+		`
 	rows, err := p.appEnv.Database.Query(p.appEnv.Ctx, query)
 	if err != nil {
 		return nil, err
