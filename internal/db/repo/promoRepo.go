@@ -17,7 +17,6 @@ func NewPromo(appEnv *base.ApplicationEnv) *Promo {
 }
 
 func (p *Promo) CreatePromo(promoCode models.PromoCode) error {
-	const op = "promoRepo.sql.CreatePromo"
 	query := `
 		INSERT INTO Promo_codes
 		(code, bonus_length, since, until, capacity)
