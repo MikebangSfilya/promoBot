@@ -6,14 +6,23 @@ func init() {
 		"callbacks.error":                     "The state was lost 😢",
 		"commands.default.message":            "It appears you haven't invoked any of the bot's support commands. Call /promo for create promocode.",
 
-		"commands.promo.fields.promo": "Vvdedite promic, pendosLanguage",
-		"commands.promo.description":  "Generate promoCode for dickGrowerBot",
+		"commands.promo.description": "Generate promoCode for dickGrowerBot",
 
 		"commands.help.description":     "show help",
 		"commands.help.fields.language": "Choose your language:",
 
 		"commands.language.description":     "change the language, реально",
 		"commands.language.fields.language": "Choose your language:",
+		"commands.promo.fields.promo":       "Enter the promo code in a new message",
+		"commands.promo.fields.length":      "Enter the bonus length for the promo code",
+		"commands.promo.fields.capacity":    "Enter the number of activations for the promo code",
+
+		"fieldPromoCreated": "Promo code created: ",
+		"actionCreate":      "Create",
+		"actionCancel":      "Cancel",
+		"textToCreate":      "Confirm promo code creation:",
+		"promoCanceled":     "Promo code creation canceled",
+		"errToCreatePromo":  "Error creating promo code",
 
 		"success": "👍🏼👌🏼",
 		"failure": "Something went wrong...",
@@ -33,6 +42,15 @@ func init() {
 
 		"commands.language.fields.language": "Выберите свой язык:",
 		"commands.promo.fields.promo":       "Введите промокод новым сообщением",
+		"commands.promo.fields.length":      "Введите длину писи для создания промокода",
+		"commands.promo.fields.capacity":    "Введите кол-во активаций промокода",
+
+		"fieldPromoCreated": "Промокод создан: ",
+		"actionCreate":      "Создать",
+		"actionCancel":      "Отменить",
+		"textToCreate":      "Подтвердите создание промокода:",
+		"promoCanceled":     "Создание промокода отменено",
+		"errToCreatePromo":  "Ошибка при создание промокода",
 
 		"success": "👍🏼",
 		"failure": "Что-то пошло не так...",

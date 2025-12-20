@@ -16,22 +16,21 @@ import (
 )
 
 const (
+	UnknowCommand       = "commands.default.message.on.command"
 	promoFieldsTrPrefix = "commands.promo.fields."
-	// promoCreatePrefix   = "promo.create"
 
 	fieldPromo        = "promo"
 	fieldConfirmation = "confirmation"
-	fieldLenght       = "lenght"
+	fieldLength       = "length"
 	fieldCapacity     = "capacity"
-	fieldPromoCreated = "Промокод создан: "
+	fieldPromoCreated = "fieldPromoCreated "
 
-	actionCreate = "Создать"
-	actionCancel = "Отменить"
-	textToCreate = "Подтвердите создание промокода:"
+	actionCreate = "actionCreate"
+	actionCancel = "actionCancel"
+	textToCreate = "textToCreate"
 
-	promoCanceled    = "Создание промокода отменено"
-	errUnknowComma   = "Неизвестная команда"
-	errToCreatePromo = "Ошибка при создание промокода"
+	promoCanceled    = "promoCanceled"
+	errToCreatePromo = "errToCreatePromo"
 )
 
 type PromoHandler struct {
@@ -64,9 +63,9 @@ func (h *PromoHandler) GetWizardDescriptor() *wizard.FormDescriptor {
 
 	desc.AddField(fieldPromo, promoFieldsTrPrefix+fieldPromo)
 
-	desc.AddField(fieldLenght, "Введите длину писи для создания промокода")
+	desc.AddField(fieldLength, promoFieldsTrPrefix+fieldLength)
 
-	desc.AddField(fieldCapacity, "Введите кол-во активаций промокода")
+	desc.AddField(fieldCapacity, promoFieldsTrPrefix+fieldCapacity)
 
 	confirm := desc.AddField(fieldConfirmation, textToCreate)
 	confirm.InlineKeyboardAnswers = []string{actionCreate, actionCancel}
@@ -81,12 +80,11 @@ func (*PromoHandler) GetCommands() []string {
 func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 
 	role := reqEnv.Options.(config.UserOptions).Role
-	fmt.Println("role is -->", role)
 	if role == config.Admin {
 		promoForm := wizard.NewWizard(h, 4)
 
 		promoForm.AddEmptyField(fieldPromo, wizard.Text)
-		promoForm.AddEmptyField(fieldLenght, wizard.Text)
+		promoForm.AddEmptyField(fieldLength, wizard.Text)
 		promoForm.AddEmptyField(fieldCapacity, wizard.Text)
 		promoForm.AddEmptyField(fieldConfirmation, wizard.Text)
 
@@ -100,15 +98,14 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 
 	reply := base.NewReplier(h.appEnv, reqenv, msg)
 
-	//extract
 	promoCode := extractPromoInfo(fields, fieldPromo)
 	confirmAct := extractPromoInfo(fields, fieldConfirmation)
 
-	lenghtExtr := extractPromoInfo(fields, fieldLenght)
-	lenght, err := strToInt(lenghtExtr)
+	lengthExtr := extractPromoInfo(fields, fieldLength)
+	length, err := strToInt(lengthExtr)
 
 	if err != nil {
-		reply("bad request lenght")
+		reply("bad request length")
 		return
 	}
 
@@ -119,7 +116,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 		return
 	}
 
-	modelToRepo, err := model.NewPromo(promoCode, lenght, capasity, nil)
+	modelToRepo, err := model.NewPromo(promoCode, length, capasity, nil)
 	if err != nil {
 		reply("failed to create model: " + err.Error())
 		return
@@ -134,13 +131,13 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 		}
 		reply(fmt.Sprintf("%s: %s, %s: %d, %s: %d",
 			fieldPromoCreated, promoCode,
-			fieldLenght, modelToRepo.BonusLength,
+			fieldLength, modelToRepo.BonusLength,
 			fieldCapacity, modelToRepo.Capacity))
 
 	case actionCancel:
 		reply(promoCanceled)
 	default:
-		reply(errUnknowComma)
+		reply(UnknowCommand)
 	}
 
 }
