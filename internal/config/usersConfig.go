@@ -13,7 +13,7 @@ type UsersConfig struct {
 }
 
 func NewUsersConfig() *UsersConfig {
-	file, err := os.ReadFile("/app/users.yaml")
+	file, err := os.ReadFile("/cfg/users.yaml")
 	if err != nil {
 		panic("failed to read users.yaml file")
 	}

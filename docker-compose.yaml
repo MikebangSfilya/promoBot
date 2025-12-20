@@ -13,6 +13,8 @@ services:
     environment:
       - REDIS_HOST=redis
       - POSTGRES_HOST=postgresql
+    volumes:
+      - ./cfg:/cfg
     networks:
       - bot-network
     restart: unless-stopped
@@ -57,6 +59,7 @@ services:
 volumes:
   redis_data:
   postgres_data:
+  
 
 networks:
   bot-network:
