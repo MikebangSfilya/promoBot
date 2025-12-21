@@ -20,7 +20,7 @@ type GetHandle struct {
 	PromoService *repo.Promo
 }
 
-func NewGetHandle(appEnv *base.ApplicationEnv) *GetHandle {
+func NewGetHandler(appEnv *base.ApplicationEnv) *GetHandle {
 	h := &GetHandle{
 		appEnv:       appEnv,
 		PromoService: repo.NewPromo(appEnv),

@@ -8,13 +8,12 @@ import (
 )
 
 var (
-	errEmpryCode  = errors.New("code is empty")
+	errEmptyCode  = errors.New("code is empty")
 	errMinusCap   = errors.New("the capacity cannot be less than zero")
-	errZeroLenght = errors.New("Bonus lenght cant be zero")
+	errZeroLength = errors.New("bonus length cant be zero")
 	errZeroCap    = errors.New("capacity cant be zero")
 )
 
-// extractPromoInfo(fields wizard.Fields) в ./promo.go
 type PromoCode struct {
 	Code        string
 	BonusLength int
@@ -23,22 +22,21 @@ type PromoCode struct {
 	Capacity    int
 }
 
-type ResponceCode struct {
+type ResponseCode struct {
 	Code        string
 	BonusLength int
 	Capacity    int
 }
 
-func (rc ResponceCode) String() string {
+func (rc ResponseCode) String() string {
 	return fmt.Sprintf("%s — %d см (%d активаций)",
 		rc.Code, rc.BonusLength, rc.Capacity)
 }
 
 func NewPromo(code string, bonusLen, capacity int, until *time.Time) (PromoCode, error) {
-
 	trimCode := strings.TrimSpace(code)
 	if trimCode == "" {
-		return PromoCode{}, errEmpryCode
+		return PromoCode{}, errEmptyCode
 	}
 	switch {
 	case capacity < 0:
@@ -47,7 +45,7 @@ func NewPromo(code string, bonusLen, capacity int, until *time.Time) (PromoCode,
 		return PromoCode{}, errZeroCap
 	}
 	if bonusLen == 0 {
-		return PromoCode{}, errZeroLenght
+		return PromoCode{}, errZeroLength
 	}
 
 	var untilTime time.Time
@@ -62,5 +60,4 @@ func NewPromo(code string, bonusLen, capacity int, until *time.Time) (PromoCode,
 		Until:       &untilTime,
 		Capacity:    capacity,
 	}, nil
-
 }

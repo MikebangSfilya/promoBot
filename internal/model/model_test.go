@@ -12,7 +12,7 @@ func TestNewModel(t *testing.T) {
 
 	testCases := []struct {
 		name      string
-		promocode string
+		promoCode string
 		length    int
 		capacity  int
 		wantErr   bool
@@ -20,35 +20,35 @@ func TestNewModel(t *testing.T) {
 	}{
 		{
 			name:      "valid_model",
-			promocode: "promocodeTest",
+			promoCode: "promocodeTest",
 			length:    50,
 			capacity:  10,
 		},
 		{
 			name:      "valid_model_with_spaces",
-			promocode: "promocode      Test",
+			promoCode: "promoCode      Test",
 			length:    50,
 			capacity:  10,
 		},
 		{
 			name:      "empty_title",
-			promocode: "",
+			promoCode: "",
 			length:    50,
 			capacity:  10,
 			wantErr:   true,
-			err:       errEmpryCode,
+			err:       errEmptyCode,
 		},
 		{
 			name:      "zero_lenght",
-			promocode: "promocodeTest",
+			promoCode: "promocodeTest",
 			length:    0,
 			capacity:  10,
 			wantErr:   true,
-			err:       errZeroLenght,
+			err:       errZeroLength,
 		},
 		{
 			name:      "zero_capacity",
-			promocode: "promocodeTest",
+			promoCode: "promocodeTest",
 			length:    50,
 			capacity:  0,
 			wantErr:   true,
@@ -56,7 +56,7 @@ func TestNewModel(t *testing.T) {
 		},
 		{
 			name:      "minus_capacity",
-			promocode: "promocodeTest",
+			promoCode: "promocodeTest",
 			length:    0,
 			capacity:  -20,
 			wantErr:   true,
@@ -64,7 +64,7 @@ func TestNewModel(t *testing.T) {
 		},
 		{
 			name:      "zero_capacity_and_lenght",
-			promocode: "promocodeTest",
+			promoCode: "promocodeTest",
 			length:    0,
 			capacity:  0,
 			wantErr:   true,
@@ -72,7 +72,7 @@ func TestNewModel(t *testing.T) {
 		},
 		{
 			name:      "minus_lenght",
-			promocode: "promocodeTest",
+			promoCode: "promocodeTest",
 			length:    -20000,
 			capacity:  5,
 			wantErr:   false,
@@ -83,17 +83,17 @@ func TestNewModel(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if !tc.wantErr {
 
-				promo, err := NewPromo(tc.promocode, tc.length, tc.capacity, nil)
+				promo, err := NewPromo(tc.promoCode, tc.length, tc.capacity, nil)
 				var baseTime = time.Now().Add(30 * 24 * time.Hour)
 
 				assert.NoError(t, err)
 				require.NotNil(t, promo)
-				require.Equal(t, promo.Code, tc.promocode)
+				require.Equal(t, promo.Code, tc.promoCode)
 				require.Equal(t, promo.BonusLength, tc.length)
 				require.Equal(t, promo.Capacity, tc.capacity)
 				require.WithinDuration(t, *promo.Until, baseTime, time.Second)
 			} else {
-				promo, err := NewPromo(tc.promocode, tc.length, tc.capacity, nil)
+				promo, err := NewPromo(tc.promoCode, tc.length, tc.capacity, nil)
 				require.Error(t, err)
 				assert.NotNil(t, promo)
 				require.EqualError(t, err, tc.err.Error())

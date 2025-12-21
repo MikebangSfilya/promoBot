@@ -43,7 +43,7 @@ type PromoHandler struct {
 	PromoService *repo.Promo
 }
 
-func NewPromoHanlder(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage) *PromoHandler {
+func NewPromoHandler(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage) *PromoHandler {
 	h := &PromoHandler{
 		appEnv:       appEnv,
 		stateStorage: stateStorage,
@@ -58,7 +58,6 @@ func (h *PromoHandler) GetWizardEnv() *wizard.Env {
 }
 
 func (h *PromoHandler) GetWizardDescriptor() *wizard.FormDescriptor {
-
 	desc := wizard.NewWizardDescriptor(h.action)
 
 	desc.AddField(fieldPromo, promoFieldsTrPrefix+fieldPromo)
@@ -72,13 +71,11 @@ func (h *PromoHandler) GetWizardDescriptor() *wizard.FormDescriptor {
 	return desc
 }
 
-// Наши поддерживаемые команды
 func (*PromoHandler) GetCommands() []string {
 	return []string{"promo", "code", "generate"}
 }
 
 func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
-
 	role := reqEnv.Options.(config.UserOptions).Role
 	if role == config.Admin {
 		promoForm := wizard.NewWizard(h, 4)
@@ -95,28 +92,26 @@ func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 }
 
 func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fields wizard.Fields) {
-
 	reply := base.NewReplier(h.appEnv, reqenv, msg)
 
 	promoCode := extractPromoInfo(fields, fieldPromo)
 	confirmAct := extractPromoInfo(fields, fieldConfirmation)
 
-	lengthExtr := extractPromoInfo(fields, fieldLength)
-	length, err := strToInt(lengthExtr)
-
+	lengthExtract := extractPromoInfo(fields, fieldLength)
+	length, err := strToInt(lengthExtract)
 	if err != nil {
 		reply("bad request length")
 		return
 	}
 
-	capasityExtr := extractPromoInfo(fields, fieldCapacity)
-	capasity, err := strToInt(capasityExtr)
+	capacityExtract := extractPromoInfo(fields, fieldCapacity)
+	capacity, err := strToInt(capacityExtract)
 	if err != nil {
 		reply("bad request cap")
 		return
 	}
 
-	modelToRepo, err := model.NewPromo(promoCode, length, capasity, nil)
+	modelToRepo, err := model.NewPromo(promoCode, length, capacity, nil)
 	if err != nil {
 		reply("failed to create model: " + err.Error())
 		return
@@ -139,11 +134,9 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 	default:
 		reply(UnknowCommand)
 	}
-
 }
 
 func extractPromoInfo(fields wizard.Fields, field string) string {
-
 	fieldExtracted := fields.FindField(field)
 
 	if fieldExtracted == nil {
@@ -153,7 +146,6 @@ func extractPromoInfo(fields wizard.Fields, field string) string {
 
 	var fieldExtractedOut string
 	if p, ok := fieldExtracted.Data.(wizard.Txt); ok {
-
 		fieldExtractedOut = p.Value
 	}
 

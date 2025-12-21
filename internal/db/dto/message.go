@@ -1,5 +1,7 @@
 package dto
 
+//Нам вообще нужен этот пакет? По идее теперь оно в config
+
 // Message represents a reference to a message, i.e. the primary key of the Suggestions table where UID == ChatID.
 // In most cases, this is the message in the private chat with some user.
 type Message struct {

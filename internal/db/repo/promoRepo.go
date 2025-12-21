@@ -33,14 +33,14 @@ func (p *Promo) CreatePromo(promoCode models.PromoCode) error {
 		promoCode.Capacity,
 	)
 	if err != nil {
-		slog.Error("faield to Exec", "errror", err)
+		slog.Error("failed to Exec", "error", err)
 		return err
 	}
 
 	return nil
 }
 
-func (p *Promo) GetTable() ([]model.ResponceCode, error) {
+func (p *Promo) GetTable() ([]model.ResponseCode, error) {
 	query := `
 		SELECT code, bonus_length, capacity
 		FROM promo_codes
@@ -52,10 +52,10 @@ func (p *Promo) GetTable() ([]model.ResponceCode, error) {
 	}
 	defer rows.Close()
 
-	var promo []model.ResponceCode
+	var promo []model.ResponseCode
 
 	for rows.Next() {
-		var prom model.ResponceCode
+		var prom model.ResponseCode
 		err := rows.Scan(
 			&prom.Code,
 			&prom.BonusLength,
