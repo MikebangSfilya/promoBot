@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 
 FROM golang:1.24-alpine AS builder
-WORKDIR /app
 
+WORKDIR /app
 ENV USER=appuser
 ENV UID=10001
 RUN adduser \
@@ -26,6 +26,12 @@ COPY . .
 RUN go build -ldflags="-w -s" -o /main .
 
 FROM alpine:3.18
+
+LABEL org.opencontainers.image.description="Promo Bot"
+LABEL org.opencontainers.image.licenses=MIT
+LABEL org.opencontainers.image.source="https://github.com/MikebangSfilya/promoBot"
+LABEL com.centurylinklabs.watchtower.enable="true"
+
 WORKDIR /app
 
 
