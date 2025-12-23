@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/MikebangSfilya/promoBot/internal/db/repo"
 	"github.com/MikebangSfilya/promoBot/internal/handlers/common"
@@ -10,6 +11,11 @@ import (
 )
 
 var noPromo = "noPromo"
+
+const (
+	listPromoCodesTitle       = "listPromoCodesTitle"
+	listPromoCodesTotalEnding = "listPromoCodesTotalEnding"
+)
 
 type GetHandle struct {
 	base.CommandHandlerTrait
@@ -46,12 +52,19 @@ func (h *GetHandle) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 		return
 	}
 
-	//TODO: переделать в нормальный вид
-	response := "Промокоды: \n\n"
-	for i, promo := range promoCodes {
-		response += fmt.Sprintf("%d. %s \n", i+1, promo.String())
-	}
-	response += fmt.Sprintf("\nВсего: %d промокодов", len(promoCodes))
+	sb := strings.Builder{}
+	sb.WriteString(reqEnv.Lang.Tr(listPromoCodesTitle))
+	sb.WriteString(": \n\n")
 
-	reply(response)
+	for i, promo := range promoCodes {
+		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, promo.String()))
+	}
+
+	sb.WriteString("\n")
+	sb.WriteString(fmt.Sprintf(
+		reqEnv.Lang.Tr(listPromoCodesTotalEnding),
+		len(promoCodes),
+	))
+
+	reply(sb.String())
 }

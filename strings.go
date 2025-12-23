@@ -25,6 +25,9 @@ func init() {
 		"errToCreatePromo":  "Error creating promo code",
 		"errNoPermission":   "Access denied. Admin rights required",
 
+		"listPromoCodesTitle":       "Promo codes",
+		"listPromoCodesTotalEnding": "Total: %d promo codes",
+
 		"success": "👍🏼👌🏼",
 		"failure": "Something went wrong...",
 	}
@@ -32,14 +35,14 @@ func init() {
 	locpool.Resources["ru"] = map[string]string{
 		"commands.default.message.on.command": "Неизвестная команда",
 		"callbacks.error":                     "Состояние формы потерялось 😢",
+		"commands.default.message":            "Кажется вы не вызвали ни одной команды которую поддерживает бот. Вызовите /promo для создания промокода.",
 
-		"commands.default.message": "Кажется вы не вызвали ни одной команды которую поддерживает бот. Вызовите /promo для создания промокода.",
+		"commands.promo.description": "Создать промокод для dickGrowerBot",
 
 		"commands.help.description":     "показать помощь",
 		"commands.help.fields.language": "Выберите свой язык:",
 
 		"commands.language.description": "сменить язык пользования",
-		"commands.promo.description":    "Generate promoCode for dickGrowerBot",
 
 		"commands.language.fields.language": "Выберите свой язык:",
 		"commands.promo.fields.promo":       "Введите промокод новым сообщением",
@@ -55,6 +58,9 @@ func init() {
 		"errNoPermission":   "Доступ запрещен. Требуются права администратора",
 
 		"noPromo": "Нет промокодов в базе",
+
+		"listPromoCodesTitle":       "Промокоды",
+		"listPromoCodesTotalEnding": "Всего: %d промокодов",
 
 		"success": "👍🏼",
 		"failure": "Что-то пошло не так...",
