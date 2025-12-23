@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
+	"github.com/MikebangSfilya/promoBot/internal/config"
 	"github.com/MikebangSfilya/promoBot/internal/db/repo"
 	"github.com/MikebangSfilya/promoBot/internal/handlers/common"
 	tgbotapi "github.com/OvyFlash/telegram-bot-api"
@@ -40,6 +42,20 @@ func (*GetHandle) GetCommands() []string {
 }
 
 func (h *GetHandle) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
+	opts, ok := reqEnv.Options.(config.UserOptions)
+	if !ok {
+		slog.Error("Failed to cast Options to UserOptions", "options", reqEnv.Options)
+		reply := base.NewReplier(h.appEnv, reqEnv, msg)
+		reply("failure")
+		return
+	}
+
+	if opts.Role != config.Admin {
+		reply := base.NewReplier(h.appEnv, reqEnv, msg)
+		reply(errNoPermission)
+		return
+	}
+
 	reply := base.NewReplier(h.appEnv, reqEnv, msg)
 	promoCodes, err := h.PromoService.GetTable()
 	if err != nil {
