@@ -42,21 +42,19 @@ func (*GetHandle) GetCommands() []string {
 }
 
 func (h *GetHandle) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
+	reply := base.NewReplier(h.appEnv, reqEnv, msg)
 	opts, ok := reqEnv.Options.(config.UserOptions)
 	if !ok {
 		slog.Error("Failed to cast Options to UserOptions", "options", reqEnv.Options)
-		reply := base.NewReplier(h.appEnv, reqEnv, msg)
 		reply("failure")
 		return
 	}
 
 	if opts.Role != config.Admin {
-		reply := base.NewReplier(h.appEnv, reqEnv, msg)
 		reply(errNoPermission)
 		return
 	}
 
-	reply := base.NewReplier(h.appEnv, reqEnv, msg)
 	promoCodes, err := h.PromoService.GetTable()
 	if err != nil {
 		reply("failure")

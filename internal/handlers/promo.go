@@ -77,16 +77,15 @@ func (*PromoHandler) GetCommands() []string {
 }
 
 func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
+	reply := base.NewReplier(h.appEnv, reqEnv, msg)
 	opts, ok := reqEnv.Options.(config.UserOptions)
 	if !ok {
 		slog.Error("Failed to cast Options to UserOptions", "options", reqEnv.Options)
-		reply := base.NewReplier(h.appEnv, reqEnv, msg)
 		reply("failure")
 		return
 	}
 
 	if opts.Role != config.Admin {
-		reply := base.NewReplier(h.appEnv, reqEnv, msg)
 		reply(errNoPermission)
 		return
 	}
@@ -134,6 +133,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 			reply(errToCreatePromo)
 			return
 		}
+		//TODO: исправить проблему с локализацией.
 		reply(fmt.Sprintf("%s: %s, %s: %d, %s: %d",
 			fieldPromoCreated, promoCode,
 			fieldLength, modelToRepo.BonusLength,
