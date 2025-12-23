@@ -31,6 +31,7 @@ const (
 
 	promoCanceled    = "promoCanceled"
 	errToCreatePromo = "errToCreatePromo"
+	errNoPermission  = "errNoPermission"
 )
 
 type PromoHandler struct {
@@ -76,19 +77,28 @@ func (*PromoHandler) GetCommands() []string {
 }
 
 func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
-	role := reqEnv.Options.(config.UserOptions).Role
-	if role == config.Admin {
-		promoForm := wizard.NewWizard(h, 4)
-
-		promoForm.AddEmptyField(fieldPromo, wizard.Text)
-		promoForm.AddEmptyField(fieldLength, wizard.Text)
-		promoForm.AddEmptyField(fieldCapacity, wizard.Text)
-		promoForm.AddEmptyField(fieldConfirmation, wizard.Text)
-
-		promoForm.ProcessNextField(reqEnv, msg)
-	} else {
+	opts, ok := reqEnv.Options.(config.UserOptions)
+	if !ok {
+		slog.Error("Failed to cast Options to UserOptions", "options", reqEnv.Options)
+		reply := base.NewReplier(h.appEnv, reqEnv, msg)
+		reply("failure")
 		return
 	}
+
+	if opts.Role != config.Admin {
+		reply := base.NewReplier(h.appEnv, reqEnv, msg)
+		reply(errNoPermission)
+		return
+	}
+
+	promoForm := wizard.NewWizard(h, 4)
+
+	promoForm.AddEmptyField(fieldPromo, wizard.Text)
+	promoForm.AddEmptyField(fieldLength, wizard.Text)
+	promoForm.AddEmptyField(fieldCapacity, wizard.Text)
+	promoForm.AddEmptyField(fieldConfirmation, wizard.Text)
+
+	promoForm.ProcessNextField(reqEnv, msg)
 }
 
 func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fields wizard.Fields) {
@@ -147,6 +157,10 @@ func extractPromoInfo(fields wizard.Fields, field string) string {
 	var fieldExtractedOut string
 	if p, ok := fieldExtracted.Data.(wizard.Txt); ok {
 		fieldExtractedOut = p.Value
+	} else {
+		slog.Error("Failed to cast field data to wizard.Txt",
+			"field", field,
+			"actualType", fmt.Sprintf("%T", fieldExtracted.Data))
 	}
 
 	return fieldExtractedOut

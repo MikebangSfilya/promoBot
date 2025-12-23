@@ -23,6 +23,7 @@ func init() {
 		"textToCreate":      "Confirm promo code creation:",
 		"promoCanceled":     "Promo code creation canceled",
 		"errToCreatePromo":  "Error creating promo code",
+		"errNoPermission":   "Access denied. Admin rights required",
 
 		"success": "👍🏼👌🏼",
 		"failure": "Something went wrong...",
@@ -51,6 +52,7 @@ func init() {
 		"textToCreate":      "Подтвердите создание промокода:",
 		"promoCanceled":     "Создание промокода отменено",
 		"errToCreatePromo":  "Ошибка при создание промокода",
+		"errNoPermission":   "Доступ запрещен. Требуются права администратора",
 
 		"noPromo": "Нет промокодов в базе",
 
