@@ -40,6 +40,7 @@ func init() {
 		"commands.default.message":            "Кажется вы не вызвали ни одной команды которую поддерживает бот. Вызовите /promo для создания промокода.",
 
 		"commands.promo.description": "Создать промокод для dickGrowerBot",
+		"commands.get.description":   "Получить таблицу промокодов",
 
 		"commands.help.description":     "показать помощь",
 		"commands.help.fields.language": "Выберите свой язык:",
