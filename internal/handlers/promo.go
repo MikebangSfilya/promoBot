@@ -23,7 +23,7 @@ const (
 	fieldConfirmation = "confirmation"
 	fieldLength       = "length"
 	fieldCapacity     = "capacity"
-	fieldPromoCreated = "fieldPromoCreated"
+	fullMsg           = "messages.promo.created_full"
 
 	actionCreate = "actionCreate"
 	actionCancel = "actionCancel"
@@ -133,11 +133,13 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 			reply(errToCreatePromo)
 			return
 		}
-		//TODO: исправить проблему с локализацией.
-		reply(fmt.Sprintf("%s: %s, %s: %d, %s: %d",
-			fieldPromoCreated, promoCode,
-			fieldLength, modelToRepo.BonusLength,
-			fieldCapacity, modelToRepo.Capacity))
+		message := fmt.Sprintf(
+			reqenv.Lang.Tr(fullMsg),
+			promoCode,
+			lengthExtract,
+			capacityExtract,
+		)
+		reply(message)
 
 	case actionCancel:
 		reply(promoCanceled)

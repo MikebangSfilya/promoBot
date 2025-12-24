@@ -17,6 +17,8 @@ func init() {
 		"commands.promo.fields.length":      "Enter the bonus length for the promo code",
 		"commands.promo.fields.capacity":    "Enter the number of activations for the promo code",
 
+		"messages.promo.created_full": ` Promo code successfully created! Promo code: %s. Length: %s. Activations: %s`,
+
 		"fieldPromoCreated": "Promo code created: ",
 		"actionCreate":      "Create",
 		"actionCancel":      "Cancel",
@@ -56,6 +58,8 @@ func init() {
 		"promoCanceled":     "Создание промокода отменено",
 		"errToCreatePromo":  "Ошибка при создание промокода",
 		"errNoPermission":   "Доступ запрещен. Требуются права администратора",
+
+		"messages.promo.created_full": `Промокод успешно создан! Промокод: %s.  Длина: %s.  Активаций: %s`,
 
 		"noPromo": "Нет промокодов в базе",
 
