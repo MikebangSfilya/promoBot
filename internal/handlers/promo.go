@@ -77,10 +77,15 @@ func (*PromoHandler) GetCommands() []string {
 }
 
 func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
+	const op = "PromoHandler.Handle"
+	log := slog.With("op", op, "user_id", msg.From.ID)
+
 	reply := base.NewReplier(h.appEnv, reqEnv, msg)
 	opts, ok := reqEnv.Options.(config.UserOptions)
 	if !ok {
-		slog.Error("Failed to cast Options to UserOptions", "options", reqEnv.Options)
+		log.Error("failed to create a promo code",
+			slog.Group("error",
+				"message", "type assertion failed"))
 		reply("failure")
 		return
 	}

@@ -17,6 +17,9 @@ func NewPromo(appEnv *base.ApplicationEnv) *Promo {
 }
 
 func (p *Promo) CreatePromo(promoCode models.PromoCode) error {
+	const op = "Promo.CreatePromo"
+	log := slog.With("op", op)
+
 	query := `
 		INSERT INTO Promo_codes
 		(code, bonus_length, since, until, capacity)
@@ -33,7 +36,11 @@ func (p *Promo) CreatePromo(promoCode models.PromoCode) error {
 		promoCode.Capacity,
 	)
 	if err != nil {
-		slog.Error("failed to Exec", "error", err)
+		log.Error("failed to create promo code",
+			slog.Group("error",
+				"message", err.Error(),
+				"component", "Database.Exec",
+				"promo_code", promoCode.Code))
 		return err
 	}
 
@@ -41,6 +48,9 @@ func (p *Promo) CreatePromo(promoCode models.PromoCode) error {
 }
 
 func (p *Promo) GetTable() ([]model.ResponseCode, error) {
+	const op = "Promo.GetTable"
+	log := slog.With("op", op)
+
 	query := `
 		SELECT code, bonus_length, capacity
 		FROM promo_codes
@@ -48,6 +58,10 @@ func (p *Promo) GetTable() ([]model.ResponseCode, error) {
 		`
 	rows, err := p.appEnv.Database.Query(p.appEnv.Ctx, query)
 	if err != nil {
+		log.Error("failed to query promo codes table",
+			slog.Group("error",
+				"message", err.Error(),
+				"component", "Database.Query"))
 		return nil, err
 	}
 	defer rows.Close()
@@ -62,10 +76,22 @@ func (p *Promo) GetTable() ([]model.ResponseCode, error) {
 			&prom.Capacity,
 		)
 		if err != nil {
+			log.Error("failed to scan promo code row",
+				slog.Group("error",
+					"message", err.Error(),
+					"component", "rows.Scan"))
 			return nil, err
 		}
 		promo = append(promo, prom)
 	}
 
-	return promo, rows.Err()
+	if err := rows.Err(); err != nil {
+		log.Error("error iterating promo codes rows",
+			slog.Group("error",
+				"message", err.Error(),
+				"component", "rows.Err"))
+		return nil, err
+	}
+
+	return promo, nil
 }

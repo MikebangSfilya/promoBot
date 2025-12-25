@@ -42,10 +42,15 @@ func (*GetHandle) GetCommands() []string {
 }
 
 func (h *GetHandle) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
+	const op = "GetHandle.Handle"
+	log := slog.With("op", op, "user_id", msg.From.ID)
+
 	reply := base.NewReplier(h.appEnv, reqEnv, msg)
 	opts, ok := reqEnv.Options.(config.UserOptions)
 	if !ok {
-		slog.Error("Failed to cast Options to UserOptions", "options", reqEnv.Options)
+		log.Error("failed to cast Options to UserOptions",
+			slog.Group("error",
+				"message", "type assertion failed"))
 		reply("failure")
 		return
 	}
@@ -57,6 +62,10 @@ func (h *GetHandle) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 
 	promoCodes, err := h.PromoService.GetTable()
 	if err != nil {
+		log.Error("failed to get promo codes table",
+			slog.Group("error",
+				"message", err.Error(),
+				"component", "PromoService.GetTable"))
 		reply("failure")
 		return
 	}
