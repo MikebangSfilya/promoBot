@@ -2,30 +2,28 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
+
+	"github.com/MikebangSfilya/promoBot/internal/config"
 
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/MikebangSfilya/promoBot/internal/db/repo"
 	"github.com/MikebangSfilya/promoBot/internal/handlers"
 	tgbotapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/go-redis/redis/v8"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kozalosev/goSadTgBot/app"
 	"github.com/kozalosev/goSadTgBot/base"
-	"github.com/kozalosev/goSadTgBot/logconst"
 	"github.com/kozalosev/goSadTgBot/metrics"
 	"github.com/kozalosev/goSadTgBot/server"
 	"github.com/kozalosev/goSadTgBot/storage"
 	"github.com/kozalosev/goSadTgBot/wizard"
 	"github.com/loctools/go-l10n/loc"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -38,8 +36,6 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	fmt.Println("STARTSTARTSTART")
-
 	metrics.AddHttpHandlerForMetrics()
 
 	srv := server.Start(os.Getenv("APP_PORT"))
@@ -48,7 +44,11 @@ func main() {
 
 	bot, err := tgbotapi.NewBotAPI(os.Getenv("API_TOKEN"))
 	if err != nil {
-		panic(err)
+		slog.Error("failed to create bot API",
+			slog.Group("error",
+				"message", err.Error(),
+				"component", "tgbotapi.NewBotAPI"))
+		os.Exit(1)
 	}
 
 	api := base.NewBotAPI(bot)
@@ -69,7 +69,7 @@ func main() {
 		Ctx:              ctx,
 		MessageHandlers:  messageHandlers,
 		CallbackHandlers: callbackHandlers,
-		Settings:         repo.NewUserService(appenv),
+		Settings:         config.NewUsersConfig(),
 		LangPool:         locpool,
 		API:              api,
 		StateStorage:     stateStorage,
@@ -77,17 +77,25 @@ func main() {
 	}
 
 	if wasPopulated := wizard.PopulateWizardDescriptors(messageHandlers); !wasPopulated {
-		log.Fatal()
+		slog.Error("failed to populate wizard descriptors",
+			slog.Group("error",
+				"message", "wizard initialization failed",
+				"component", "wizard.PopulateWizardDescriptors"))
+		os.Exit(1)
 	}
 
 	var (
 		wg         sync.WaitGroup
 		wasStopped bool
 	)
-	//Graceful shot виидмо
+
 	if bot.Debug {
 		if _, err := bot.Request(tgbotapi.DeleteWebhookConfig{}); err != nil {
-			panic(err)
+			slog.Error("failed to delete webhook",
+				slog.Group("error",
+					"message", err.Error(),
+					"component", "bot.Request.DeleteWebhook"))
+			os.Exit(1)
 		}
 
 		updateConfig := tgbotapi.UpdateConfig{Offset: 0, Timeout: 30, AllowedUpdates: []string{
@@ -122,7 +130,11 @@ func main() {
 func establishConnections(ctx context.Context) (stateStorage wizard.StateStorage, db *pgxpool.Pool) {
 	commandStateTTL, err := time.ParseDuration(os.Getenv("COMMAND_STATE_TTL"))
 	if err != nil {
-		panic(err)
+		slog.Error("failed to parse COMMAND_STATE_TTL",
+			slog.Group("error",
+				"message", err.Error(),
+				"value", os.Getenv("COMMAND_STATE_TTL")))
+		os.Exit(1)
 	}
 	stateStorage = wizard.ConnectToRedis(ctx, commandStateTTL, &redis.Options{
 		Addr:     os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT"),
@@ -143,26 +155,23 @@ func establishConnections(ctx context.Context) (stateStorage wizard.StateStorage
 }
 
 func initHandlers(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage) (messageHandlers []base.MessageHandler, callbackHandlers []base.CallbackHandler) {
-	languageHandler := handlers.NewLanguageHandler(appEnv, stateStorage)
 	messageHandlers = []base.MessageHandler{
-		// handlers.NewHelpHandler(languageHandler),
-		languageHandler,
-		handlers.NewPromoHanlder(appEnv, stateStorage),
-		// handlers.NewNotPrivateChatFallbackHandler(stateStorage),
+		handlers.NewGetHandler(appEnv),
+		handlers.NewPromoHandler(appEnv, stateStorage),
 	}
 	callbackHandlers = []base.CallbackHandler{
 		// handlers.NewRevokeCallbackHandler(appEnv),
 	}
-	// metrics.RegisterMessageHandlerCounters(messageHandlers...)
+	metrics.RegisterMessageHandlerCounters(messageHandlers...)
 	return
 }
 
 func shutdown(stateStorage wizard.StateStorage, db *pgxpool.Pool) {
 	db.Close()
 	if err := stateStorage.Close(); err != nil {
-		logrus.WithField(logconst.FieldFunc, "shutdown").
-			WithField(logconst.FieldCalledObject, "StateStorage").
-			WithField(logconst.FieldCalledMethod, "Close").
-			Error(err)
+		slog.Error("failed to close state storage",
+			slog.Group("error",
+				"message", err.Error(),
+				"component", "StateStorage.Close"))
 	}
 }
