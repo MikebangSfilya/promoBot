@@ -1,5 +1,5 @@
 # Configuration
-include .env
+-include .env
 export
 
 COMPOSE = docker compose -f docker-compose.yml -f docker-compose.override.yml
@@ -28,7 +28,40 @@ migrate-version:
 	migrate -path ./migrations -database "$(DB_URL)" version
 
 
-# Local Development 
+# Local Development
+.env:
+ifeq ($(OS),Windows_NT)
+	@powershell -Command "if ([string]::IsNullOrEmpty('$(TOKEN)')) { \
+		$$secureToken = Read-Host -Prompt 'Please enter TOKEN' -AsSecureString; \
+		$$token = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($$secureToken)); \
+		if ([string]::IsNullOrEmpty($$token)) { \
+			Write-Error 'TOKEN cannot be empty'; \
+			exit 1 \
+		}; \
+		Copy-Item .env.example .env; \
+		(Get-Content .env) -replace '^API_TOKEN=.*', \"API_TOKEN=$$token\" | Set-Content .env \
+	} else { \
+		Copy-Item .env.example .env; \
+		(Get-Content .env) -replace '^API_TOKEN=.*', 'API_TOKEN=$(TOKEN)' | Set-Content .env \
+	}"
+else
+	@if [ -z "$(TOKEN)" ]; then \
+		echo -n "Please enter TOKEN: "; \
+		read -s token; \
+		echo ""; \
+		if [ -z "$$token" ]; then \
+			echo "Error: TOKEN cannot be empty"; \
+			exit 1; \
+		fi; \
+		cp .env.example .env; \
+		sed -i "s/^API_TOKEN=.*/API_TOKEN=$$token/" .env; \
+	else \
+		cp .env.example .env; \
+		sed -i 's/^API_TOKEN=.*/API_TOKEN=$(TOKEN)/' .env; \
+	fi
+endif
+	@echo ".env file created successfully"
+
 build: deps
 	go build -o $(BIN) .
 
