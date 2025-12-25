@@ -111,9 +111,7 @@ func main() {
 
 		updateConfig := tgbotapi.UpdateConfig{Offset: 0, Timeout: 30, AllowedUpdates: []string{
 			tgbotapi.UpdateTypeMessage,
-			tgbotapi.UpdateTypeInlineQuery,
 			tgbotapi.UpdateTypeCallbackQuery,
-			tgbotapi.UpdateTypeChosenInlineResult,
 		}}
 		updates := bot.GetUpdatesChan(updateConfig)
 
