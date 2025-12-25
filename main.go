@@ -65,11 +65,22 @@ func main() {
 	messageHandlers, callbackHandlers := initHandlers(appenv, stateStorage)
 	api.SetCommands(locpool, supportedLanguages, base.ConvertHandlersToCommands(messageHandlers))
 
+	usersConfigPath := os.Getenv("USERS_CONFIG_FILE")
+	usersConfig, err := config.NewUsersConfig(usersConfigPath)
+	if err != nil {
+		slog.Error("failed to read users configuration file",
+			slog.Group("error",
+				"message", err.Error(),
+				"component", "config.NewUsersConfig",
+				"path", usersConfigPath))
+		os.Exit(1)
+	}
+
 	appParams := &app.Params{
 		Ctx:              ctx,
 		MessageHandlers:  messageHandlers,
 		CallbackHandlers: callbackHandlers,
-		Settings:         config.NewUsersConfig(),
+		Settings:         usersConfig,
 		LangPool:         locpool,
 		API:              api,
 		StateStorage:     stateStorage,

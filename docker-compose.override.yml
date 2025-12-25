@@ -1,0 +1,7 @@
+services:
+  redis:
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+  postgresql:
+    ports:
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"

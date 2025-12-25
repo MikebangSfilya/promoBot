@@ -16,14 +16,13 @@ RUN adduser \
 
 RUN apk add --no-cache git ca-certificates
 
-
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY . .
+COPY . ./
 
+RUN go build -ldflags="-w -s" -o /promobot .
 
-RUN go build -ldflags="-w -s" -o /main .
 
 FROM alpine:3.18
 
@@ -34,16 +33,12 @@ LABEL com.centurylinklabs.watchtower.enable="true"
 
 WORKDIR /app
 
-
 RUN apk add --no-cache ca-certificates
 
-COPY --from=builder /main /app/main
+COPY --from=builder /promobot /app/promobot
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/group /etc/group
 
-
 USER appuser:appuser
 
-EXPOSE 9091
-
-ENTRYPOINT ["/app/main"]
+ENTRYPOINT ["/app/promobot"]

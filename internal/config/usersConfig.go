@@ -1,6 +1,8 @@
 package config
 
 import (
+	"errors"
+	"fmt"
 	"os"
 
 	"github.com/kozalosev/goSadTgBot/settings"
@@ -12,19 +14,23 @@ type UsersConfig struct {
 	users []User
 }
 
-func NewUsersConfig() *UsersConfig {
-	file, err := os.ReadFile("/cfg/users.yaml")
+func NewUsersConfig(configPath string) (*UsersConfig, error) {
+	if configPath == "" {
+		return nil, errors.New("users configuration file path is not specified")
+	}
+
+	file, err := os.ReadFile(configPath)
 	if err != nil {
-		panic("failed to read users.yaml file")
+		return nil, fmt.Errorf("failed to read users.yaml file: %w", err)
 	}
 
 	var cfg struct {
 		Users []User
 	}
 	if err := yaml.Unmarshal(file, &cfg); err != nil {
-		panic("failed to parse users.yaml file")
+		return nil, fmt.Errorf("failed to parse users.yaml file: %w", err)
 	}
-	return &UsersConfig{users: cfg.Users}
+	return &UsersConfig{users: cfg.Users}, nil
 }
 
 func (u *UsersConfig) FetchUserOptions(uid int64, defaultLang string) (settings.LangCode, settings.UserOptions) {

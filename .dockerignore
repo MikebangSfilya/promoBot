@@ -1,0 +1,9 @@
+# Exclude everything
+*
+
+# But include these files and directories
+!go.mod
+!go.sum
+!main.go
+!strings.go
+!internal/

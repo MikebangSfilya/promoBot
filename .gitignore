@@ -1,4 +1,4 @@
 .env
-language copy
 users.yaml
-.idea
+.idea/
+bin/
