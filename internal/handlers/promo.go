@@ -19,6 +19,9 @@ const (
 	UnknowCommand       = "commands.default.message.on.command"
 	promoFieldsTrPrefix = "commands.promo.fields."
 
+	BadLength   = "BadLength"
+	BadCapacity = "BadCapacity"
+
 	fieldPromo        = "promo"
 	fieldConfirmation = "confirmation"
 	fieldLength       = "length"
@@ -121,7 +124,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 			slog.Group("error",
 				"message", err.Error(),
 				"value", lengthExtract))
-		reply("bad request length")
+		reply(BadLength)
 		return
 	}
 
@@ -132,7 +135,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 			slog.Group("error",
 				"message", err.Error(),
 				"value", capacityExtract))
-		reply("bad request cap")
+		reply(BadCapacity)
 		return
 	}
 

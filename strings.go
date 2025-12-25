@@ -30,6 +30,9 @@ func init() {
 		"listPromoCodesTitle":       "Promo codes",
 		"listPromoCodesTotalEnding": "Total: %d promo codes",
 
+		"BadLength":   "Invalid length value",
+		"BadCapacity": "Invalid capacity value",
+
 		"success": "👍🏼👌🏼",
 		"failure": "Something went wrong...",
 	}
@@ -69,6 +72,9 @@ func init() {
 
 		"success": "👍🏼",
 		"failure": "Что-то пошло не так...",
+
+		"BadLength":   "Неверный запрос для поля \"длина\"",
+		"BadCapacity": "Неверный запрос для поля \"активаций\"",
 
 		"user":   "обычный",
 		"author": "автор",
