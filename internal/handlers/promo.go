@@ -145,7 +145,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 			slog.Group("error",
 				"message", err.Error(),
 				"promo_code", promoCode))
-		reply("failed to create model: " + err.Error())
+		reply(errToCreatePromo)
 		return
 	}
 
