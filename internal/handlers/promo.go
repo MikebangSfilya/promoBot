@@ -106,6 +106,9 @@ func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 }
 
 func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fields wizard.Fields) {
+	const op = "PromoHandler.action"
+	log := slog.With("op", op, "user_id", msg.From.ID)
+
 	reply := base.NewReplier(h.appEnv, reqenv, msg)
 
 	promoCode := extractPromoInfo(fields, fieldPromo)
@@ -114,6 +117,10 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 	lengthExtract := extractPromoInfo(fields, fieldLength)
 	length, err := strToInt(lengthExtract)
 	if err != nil {
+		log.Error("failed to parse length",
+			slog.Group("error",
+				"message", err.Error(),
+				"value", lengthExtract))
 		reply("bad request length")
 		return
 	}
@@ -121,12 +128,20 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 	capacityExtract := extractPromoInfo(fields, fieldCapacity)
 	capacity, err := strToInt(capacityExtract)
 	if err != nil {
+		log.Error("failed to parse capacity",
+			slog.Group("error",
+				"message", err.Error(),
+				"value", capacityExtract))
 		reply("bad request cap")
 		return
 	}
 
 	modelToRepo, err := model.NewPromo(promoCode, length, capacity, nil)
 	if err != nil {
+		log.Error("failed to create promo model",
+			slog.Group("error",
+				"message", err.Error(),
+				"promo_code", promoCode))
 		reply("failed to create model: " + err.Error())
 		return
 	}
@@ -135,6 +150,11 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 	case actionCreate:
 		err := h.PromoService.CreatePromo(modelToRepo)
 		if err != nil {
+			log.Error("failed to create promo code",
+				slog.Group("error",
+					"message", err.Error(),
+					"component", "PromoService.CreatePromo",
+					"promo_code", promoCode))
 			reply(errToCreatePromo)
 			return
 		}
@@ -154,10 +174,15 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 }
 
 func extractPromoInfo(fields wizard.Fields, field string) string {
+	const op = "extractPromoInfo"
+	log := slog.With("op", op, "field", field)
+
 	fieldExtracted := fields.FindField(field)
 
 	if fieldExtracted == nil {
-		slog.Error("One of fields is nil", "error", "nil fields")
+		log.Error("field not found in wizard fields",
+			slog.Group("error",
+				"message", "nil field"))
 		return ""
 	}
 
@@ -165,9 +190,10 @@ func extractPromoInfo(fields wizard.Fields, field string) string {
 	if p, ok := fieldExtracted.Data.(wizard.Txt); ok {
 		fieldExtractedOut = p.Value
 	} else {
-		slog.Error("Failed to cast field data to wizard.Txt",
-			"field", field,
-			"actualType", fmt.Sprintf("%T", fieldExtracted.Data))
+		log.Error("failed to cast field data to wizard.Txt",
+			slog.Group("error",
+				"message", "type assertion failed",
+				"actual_type", fmt.Sprintf("%T", fieldExtracted.Data)))
 	}
 
 	return fieldExtractedOut
