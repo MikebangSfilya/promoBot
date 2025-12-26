@@ -1,26 +1,67 @@
 # Configuration
-COMPOSE = docker-compose
+-include .env
+export
+
+COMPOSE = docker compose -f docker-compose.yml -f docker-compose.override.yml
 APP = promo-bot
 BIN = bin/$(APP)
-PG_CONTAINER = promo-postgresql
-PG_USER = test
-PG_DB = test
-DB_URL=postgres://test:test@localhost:5432/test?sslmode=disable
+DB_URL=postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=disable
 
 .PHONY: migrate-up migrate-down migrate-force migrate-create migrate-version
-tables:
-	docker exec promo-postgresql psql -U test -d test -c "\dt"
-
 migrate-up:
 	migrate -path ./migrations -database "$(DB_URL)" up
 migrate-down:
 	migrate -path ./migrations -database "$(DB_URL)" down 1
+migrate-force:
+ifeq ($(strip $(NAME)),)
+	@echo Usage: make migrate-force VERSION=...
+	@exit 1
+endif
+	migrate -path ./migrations -database "$(DB_URL)" force $(VERSION)
+migrate-create:
+ifeq ($(strip $(NAME)),)
+	@echo Usage: make migrate-create NAME=...
+	@exit 1
+endif
+	migrate create -ext sql -dir migrations -seq $(NAME)
 migrate-version:
 	migrate -path ./migrations -database "$(DB_URL)" version
 
 
+# Local Development
+.env:
+ifeq ($(OS),Windows_NT)
+	@powershell -Command "if ([string]::IsNullOrEmpty('$(TOKEN)')) { \
+		$$secureToken = Read-Host -Prompt 'Please enter TOKEN' -AsSecureString; \
+		$$token = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($$secureToken)); \
+		if ([string]::IsNullOrEmpty($$token)) { \
+			Write-Error 'TOKEN cannot be empty'; \
+			exit 1 \
+		}; \
+		Copy-Item .env.example .env; \
+		(Get-Content .env) -replace '^API_TOKEN=.*', \"API_TOKEN=$$token\" | Set-Content .env \
+	} else { \
+		Copy-Item .env.example .env; \
+		(Get-Content .env) -replace '^API_TOKEN=.*', 'API_TOKEN=$(TOKEN)' | Set-Content .env \
+	}"
+else
+	@if [ -z "$(TOKEN)" ]; then \
+		echo -n "Please enter TOKEN: "; \
+		read -s token; \
+		echo ""; \
+		if [ -z "$$token" ]; then \
+			echo "Error: TOKEN cannot be empty"; \
+			exit 1; \
+		fi; \
+		cp .env.example .env; \
+		sed -i "s/^API_TOKEN=.*/API_TOKEN=$$token/" .env; \
+	else \
+		cp .env.example .env; \
+		sed -i 's/^API_TOKEN=.*/API_TOKEN=$(TOKEN)/' .env; \
+	fi
+endif
+	@echo ".env file created successfully"
 
-# Local Development 
 build: deps
 	go build -o $(BIN) .
 
@@ -45,7 +86,10 @@ compose-build-nocache:
 	$(COMPOSE) build --no-cache
 
 up:
-	$(COMPOSE) up -d
+	$(COMPOSE) up -d --build
+
+up-infra:
+	$(COMPOSE) up -d postgresql redis
 
 down:
 	$(COMPOSE) down
@@ -69,20 +113,23 @@ ps:
 
 # Database
 db:
-	docker exec -it $(PG_CONTAINER) psql -U $(PG_USER) -d $(PG_DB)
+	$(COMPOSE) exec postgresql psql -U $(POSTGRES_USER) $(POSTGRES_DB)
 
 tables:
-	docker exec $(PG_CONTAINER) psql -U $(PG_USER) -d $(PG_DB) -c "\dt"
+	$(COMPOSE) exec postgresql psql -U $(POSTGRES_USER) $(POSTGRES_DB) -c "\dt"
 
 databases:
-	docker exec $(PG_CONTAINER) psql -U $(PG_USER) -d $(PG_DB) -c "\l"
+	$(COMPOSE) exec postgresql psql -U $(POSTGRES_USER) $(POSTGRES_DB) -c "\l"
 
 query:
-	@if [ -z "$(SQL)" ]; then \
-		echo "Usage: make query SQL=\"SELECT * FROM table;\""; \
-		exit 1; \
-	fi
-	docker exec $(PG_CONTAINER) psql -U $(PG_USER) -d $(PG_DB) -c "$(SQL)"
+ifeq ($(strip $(NAME)),)
+	@echo Usage: make query SQL="SELECT * FROM table;"
+	@exit 1
+endif
+	$(COMPOSE) exec postgresql psql -U $(POSTGRES_USER) $(POSTGRES_DB) -c "$(SQL)"
+
+dump:
+	$(COMPOSE) exec postgresql pg_dump -U $(POSTGRES_USER) $(POSTGRES_DB) > dump.sql
 
 # Workflows
 dev: up logs-bot
@@ -95,5 +142,5 @@ reset: clean-volumes compose-build-nocache up
 .PHONY: build run deps test clean \
         compose-build compose-build-nocache up down downfull logs logs-bot \
         restart clean-volumes ps \
-        db tables databases query exec-sql dump \
+        db tables databases query dump \
         dev deploy reset

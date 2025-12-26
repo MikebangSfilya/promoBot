@@ -9,7 +9,6 @@ require (
 	github.com/kozalosev/goSadTgBot v0.4.1-0.20251124032837-c4d2c67126ab
 	github.com/loctools/go-l10n v0.0.0-20191031185225-4f8f121cf651
 	github.com/samber/lo v1.52.0
-	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.40.0
@@ -71,6 +70,7 @@ require (
 	github.com/prometheus/common v0.67.3 // indirect
 	github.com/prometheus/procfs v0.19.2 // indirect
 	github.com/shirou/gopsutil/v4 v4.25.10 // indirect
+	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/thoas/go-funk v0.9.3 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
