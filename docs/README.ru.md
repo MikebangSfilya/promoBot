@@ -1,5 +1,7 @@
 # PromoBot
 
+[![CI Build](https://github.com/MikebangSfilya/promoBot/actions/workflows/ci-build.yml/badge.svg)](https://github.com/MikebangSfilya/promoBot/actions/workflows/ci-build.yml)
+
 Telegram-бот для управления промокодами, построенный на базе [goSadTgBot](https://github.com/kozalosev/goSadTgBot). Работает на версии Go 1.24
 
 Русская версия | [English](../README.md)
