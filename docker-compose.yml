@@ -33,7 +33,7 @@ services:
       - ${APP_PORT}
     volumes:
       - ./cfg:/cfg
-      - ./audit-logs:/app/audit-logs
+      - audit-logs:/app/audit-logs
     networks:
       - promo-bot-network
     logging:
@@ -92,6 +92,7 @@ services:
 volumes:
   redis_data:
   postgres_data:
+  audit-logs:
 
 networks:
   promo-bot-network:
