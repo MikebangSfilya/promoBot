@@ -18,11 +18,6 @@ PromoBot allows administrators to create promo codes for [DickGrowerBot](https:/
 
 ## Installation
 
-### Clone the repository
-```bash
-git clone https://github.com/MikebangSfilya/promoBot
-```
-
 ### User configuration
 
 Create a `users.yaml` file. Configuration example can be found in `cfg/users.yaml.example`
@@ -34,8 +29,14 @@ Set environment variables, full description is available in `env.example`
 ## Running
 
 ```bash
-make compose-build
 make up
+```
+
+if you want, you can run only infrastructure in Docker containers and run bot locally:
+
+```bash
+make up-infra
+make run
 ```
 
 ## Bot Commands
@@ -43,3 +44,4 @@ make up
 All commands are available only to users with admin status:
 - `/promo` - Create a new promo code
 - `/get` - Show all promo codes
+
