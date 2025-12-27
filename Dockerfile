@@ -39,6 +39,10 @@ COPY --from=builder /promobot /app/promobot
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/group /etc/group
 
+RUN mkdir -p /app/audit-logs && \
+    chown -R 10001:10001 /app/audit-logs && \
+    chmod 755 /app/audit-logs
+
 USER appuser:appuser
 
 ENTRYPOINT ["/app/promobot"]

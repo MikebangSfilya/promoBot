@@ -2,6 +2,7 @@ package audit
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 )
@@ -9,14 +10,16 @@ import (
 func WriteFile(s []byte) error {
 	const op = "WriteFile"
 
-	logDir := filepath.Join("/tmp", "promobot-logs")
-	if err := os.MkdirAll(logDir, 0777); err != nil {
+	logPath := filepath.Join("audit-logs", "audit.json")
+	dir := filepath.Dir(logPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("%s: failed to create logs dir: %w", op, err)
 	}
 
-	logPath := filepath.Join(logDir, "audit.json")
+	absPath, _ := filepath.Abs(logPath)
+	slog.Info("writing audit", "path", absPath)
 
-	file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("%s: failed to open file: %w", op, err)
 	}

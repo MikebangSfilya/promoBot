@@ -33,6 +33,7 @@ services:
       - ${APP_PORT}
     volumes:
       - ./cfg:/cfg
+      - ./audit-logs:/app/audit-logs
     networks:
       - promo-bot-network
     logging:
