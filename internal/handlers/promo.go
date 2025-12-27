@@ -236,7 +236,6 @@ func Audit(s AuditLog) {
 	const op = "PromoHandler.Audit"
 	log := slog.With("op", op)
 
-	log.Info("starting audit", slog.Group("code", s.Code, "action", s.Action))
 	b, err := json.Marshal(s)
 	if err != nil {
 		log.Error("failed to marshal audit",
@@ -246,8 +245,6 @@ func Audit(s AuditLog) {
 		return
 	}
 	b = append(b, '\n')
-
-	slog.Info("calling WriteFile", "data", string(b))
 
 	if err := audit.WriteFile(b); err != nil {
 		log.Error("AUDIT FAILED: write error",
