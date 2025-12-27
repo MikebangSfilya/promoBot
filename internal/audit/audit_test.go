@@ -101,7 +101,6 @@ func TestWriteFile(t *testing.T) {
 				os.Chmod(logPath, 0444) // readonly файл
 			},
 			validateFunc: func(t *testing.T, tmpDir string) {
-				// Восстанавливаем права для очистки
 				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
 				os.Chmod(logPath, 0644)
 			},
