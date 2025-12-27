@@ -35,8 +35,7 @@ make up
 if you want, you can run only infrastructure in Docker containers and run bot locally:
 
 ```bash
-make up-infra
-make run
+make up-infra run
 ```
 
 ## Bot Commands
