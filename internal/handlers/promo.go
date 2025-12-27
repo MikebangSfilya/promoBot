@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strconv"
 
+	"github.com/MikebangSfilya/promoBot/internal/audit"
 	"github.com/MikebangSfilya/promoBot/internal/config"
 	"github.com/MikebangSfilya/promoBot/internal/db/repo"
 	"github.com/MikebangSfilya/promoBot/internal/handlers/common"
@@ -36,6 +38,20 @@ const (
 	errToCreatePromo = "errToCreatePromo"
 	errNoPermission  = "errNoPermission"
 )
+
+type AuditLog struct {
+	Code   string `json:"code"`
+	Action string `json:"action"`
+	By     string `json:"by"`
+}
+
+func NewAuditLog(code, action, by string) AuditLog {
+	return AuditLog{
+		Code:   code,
+		Action: action,
+		By:     by,
+	}
+}
 
 type PromoHandler struct {
 	base.CommandHandlerTrait
@@ -98,6 +114,8 @@ func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 		return
 	}
 
+	fmt.Println("role is ---->", opts.Role)
+
 	promoForm := wizard.NewWizard(h, 4)
 
 	promoForm.AddEmptyField(fieldPromo, wizard.Text)
@@ -113,6 +131,15 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 	log := slog.With("op", op, "user_id", msg.From.ID)
 
 	reply := base.NewReplier(h.appEnv, reqenv, msg)
+
+	opts, ok := reqenv.Options.(config.UserOptions)
+	if !ok {
+		log.Error("failed to get user options",
+			slog.Group("error",
+				"message", "type assertion failed"))
+		reply(errToCreatePromo)
+		return
+	}
 
 	promoCode := extractPromoInfo(fields, fieldPromo)
 	confirmAct := extractPromoInfo(fields, fieldConfirmation)
@@ -161,6 +188,8 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 			reply(errToCreatePromo)
 			return
 		}
+		aud := NewAuditLog(modelToRepo.Code, "create", string(opts.UserName))
+		Audit(aud)
 		message := fmt.Sprintf(
 			reqenv.Lang.Tr(fullMsg),
 			promoCode,
@@ -174,6 +203,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 	default:
 		reply(UnknowCommand)
 	}
+
 }
 
 func extractPromoInfo(fields wizard.Fields, field string) string {
@@ -200,6 +230,32 @@ func extractPromoInfo(fields wizard.Fields, field string) string {
 	}
 
 	return fieldExtractedOut
+}
+
+func Audit(s AuditLog) {
+	const op = "PromoHandler.Audit"
+	log := slog.With("op", op)
+
+	log.Info("starting audit", slog.Group("code", s.Code, "action", s.Action))
+	b, err := json.Marshal(s)
+	if err != nil {
+		log.Error("failed to marshal audit",
+			slog.Group("error",
+				"message", err.Error(),
+				"string", s))
+		return
+	}
+	b = append(b, '\n')
+
+	slog.Info("calling WriteFile", "data", string(b))
+
+	if err := audit.WriteFile(b); err != nil {
+		log.Error("AUDIT FAILED: write error",
+			slog.Group("error",
+				"message", err.Error(),
+				"json", b))
+		return
+	}
 }
 
 func strToInt(s string) (int, error) {
