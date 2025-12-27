@@ -70,7 +70,7 @@ func TestWriteFile(t *testing.T) {
 			input:   []byte(`{"code":"fail","action":"created","by":"test"}`),
 			wantErr: true,
 			setupFunc: func(tmpDir string) {
-				// Создаем файл с именем директории, которую функция попытается создать
+
 				os.WriteFile(filepath.Join(tmpDir, "audit-logs"), []byte("block"), 0644)
 			},
 		},
@@ -79,7 +79,7 @@ func TestWriteFile(t *testing.T) {
 			input:   []byte(`{"code":"readonly","action":"created","by":"test"}`),
 			wantErr: true,
 			setupFunc: func(tmpDir string) {
-				// Создаем директорию с правами только на чтение
+
 				logDir := filepath.Join(tmpDir, "audit-logs")
 				os.MkdirAll(logDir, 0755)
 				os.Chmod(logDir, 0444) // readonly
@@ -120,7 +120,7 @@ func TestWriteFile(t *testing.T) {
 		{
 			name:    "запись невалидного JSON",
 			input:   []byte(`{"code":"invalid","action":broken json}`),
-			wantErr: false, // функция WriteFile не валидирует JSON, просто записывает байты
+			wantErr: false,
 			validateFunc: func(t *testing.T, tmpDir string) {
 				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
 				content, err := os.ReadFile(logPath)
