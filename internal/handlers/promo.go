@@ -114,8 +114,6 @@ func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 		return
 	}
 
-	fmt.Println("role is ---->", opts.Role)
-
 	promoForm := wizard.NewWizard(h, 4)
 
 	promoForm.AddEmptyField(fieldPromo, wizard.Text)
