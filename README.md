@@ -1,19 +1,46 @@
-# promo-bot
+# PromoBot
 
-В какой-то момент тут будут важные записи
+[![CI Build](https://github.com/MikebangSfilya/promoBot/actions/workflows/ci-build.yml/badge.svg)](https://github.com/MikebangSfilya/promoBot/actions/workflows/ci-build.yml)
 
-## TODO
+Telegram bot for managing promo codes, built on top of [goSadTgBot](https://github.com/kozalosev/goSadTgBot). Works with Go 1.24
 
-- [x] визард на 1 поле
-- [x] Запустить минимального работающего визарда на 3 поля
-- [x] принимать значение длины писи
-- [x] количество применений
-- [x] Время начала(по дефолту будет время создания)
-- [x] Время конца(опционально)
-- [x] Все что выше попробуй реализовать через структуру в `internal/model`. Нужно через action проложить в структуры, и wizard Description
-- [x] Переделать функцию `extractPromoInfo(fields wizard.Fields) (string, string, string, string)`, сейчас это дикий костыль на 4 возвращаемых значения. Переделаю в `extractPromoInfo(fields wizard.Fields, fieldName string) (string)`
-- [x] Развернуть БД
-- [x] не сохранять нулевые значения в базу
-- [x] реализация статистики
-- [ ] `Вообще, я потом тебя ещё попрошу сделать селекты из базы, чтобы список промиков получать и информацию по коду`
-[https://t.me/kozaloru_chat/27070]
+[Русская версия](docs/README.ru.md) | English
+
+## Description
+
+PromoBot allows administrators to create promo codes for [DickGrowerBot](https://github.com/kozalosev/DickGrowerBot).
+
+## Features
+
+- Creating promo codes with customizable parameters
+- Viewing table of all promo codes
+- Access control based on user configuration
+
+## Installation
+
+### User configuration
+
+Create a `users.yaml` file. Configuration example can be found in `cfg/users.yaml.example`
+
+### Environment variables
+
+Set environment variables, full description is available in `env.example`
+
+## Running
+
+```bash
+make up
+```
+
+if you want, you can run only infrastructure in Docker containers and run bot locally:
+
+```bash
+make up-infra run
+```
+
+## Bot Commands
+
+All commands are available only to users with admin status:
+- `/promo` - Create a new promo code
+- `/get` - Show all promo codes
+
