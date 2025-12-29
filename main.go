@@ -34,11 +34,12 @@ var (
 
 func main() {
 
-	DevLvl := os.Getenv("LOCAL_DEV")
+	DevLvl := os.Getenv("DEV_LVL")
 	if DevLvl == "" {
 		DevLvl = "local"
 	}
 	log := InitLogger(DevLvl)
+	log.Info("starting up", "devLvl", DevLvl)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -53,8 +54,8 @@ func main() {
 	if err != nil {
 		slog.Error("failed to create bot API",
 			slog.Group("error",
-				"message", err.Error(),
-				"component", "tgbotapi.NewBotAPI"))
+				slog.String("message", err.Error()),
+				slog.String("component", "tgbotapi.NewBotAPI")))
 		os.Exit(1)
 	}
 

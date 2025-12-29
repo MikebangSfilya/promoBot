@@ -15,6 +15,7 @@ services:
     environment:
       - API_TOKEN
       - DEBUG
+      - DEV_LVL
       - COMMAND_STATE_TTL
       - APP_PORT
       - APP_PATH
@@ -30,7 +31,7 @@ services:
       - WEBHOOK_PORT
       - WEBHOOK_PATH
       - USERS_CONFIG_FILE=/cfg/users.yaml
-      - AUDIT_LOGS_DIR
+      - AUDIT_LOGS_DIR=/app/audit-logs
     expose:
       - ${APP_PORT}
     volumes:
