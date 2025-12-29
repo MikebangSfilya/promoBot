@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/MikebangSfilya/promoBot/internal/audit"
 	"github.com/MikebangSfilya/promoBot/internal/config"
 
 	"strings"
@@ -33,6 +34,12 @@ var (
 
 func main() {
 
+	DevLvl := os.Getenv("LOCAL_DEV")
+	if DevLvl == "" {
+		DevLvl = "local"
+	}
+	log := InitLogger(DevLvl)
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -56,13 +63,28 @@ func main() {
 	debugMode := os.Getenv("DEBUG")
 	bot.Debug = strings.ToLower(debugMode) == "true" || debugMode == "1"
 
+	filePath := "audit-logs"
+	if DevLvl == "dev" {
+		filePath = os.Getenv("AUDIT_LOGS_DIR")
+	}
+	log.Debug("filePath", "path", filePath)
+
+	auditStorage, err := audit.NewFileStorage(filePath)
+	if err != nil {
+		log.Error("failed to initialize audit storage",
+			slog.Group("error",
+				slog.String("message", err.Error()),
+				slog.String("component", "InitAudit")))
+		os.Exit(1)
+	}
+
 	appenv := &base.ApplicationEnv{
 		Bot:      api,
 		Database: db,
 		Ctx:      ctx,
 	}
 
-	messageHandlers, callbackHandlers := initHandlers(appenv, stateStorage)
+	messageHandlers, callbackHandlers := initHandlers(appenv, stateStorage, auditStorage)
 	api.SetCommands(locpool, supportedLanguages, base.ConvertHandlersToCommands(messageHandlers))
 
 	usersConfigPath := os.Getenv("USERS_CONFIG_FILE")
@@ -163,10 +185,10 @@ func establishConnections(ctx context.Context) (stateStorage wizard.StateStorage
 	return
 }
 
-func initHandlers(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage) (messageHandlers []base.MessageHandler, callbackHandlers []base.CallbackHandler) {
+func initHandlers(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage, auditStorage audit.Storage) (messageHandlers []base.MessageHandler, callbackHandlers []base.CallbackHandler) {
 	messageHandlers = []base.MessageHandler{
 		handlers.NewGetHandler(appEnv),
-		handlers.NewPromoHandler(appEnv, stateStorage),
+		handlers.NewPromoHandler(appEnv, stateStorage, auditStorage),
 	}
 	callbackHandlers = []base.CallbackHandler{
 		// handlers.NewRevokeCallbackHandler(appEnv),
@@ -183,4 +205,35 @@ func shutdown(stateStorage wizard.StateStorage, db *pgxpool.Pool) {
 				"message", err.Error(),
 				"component", "StateStorage.Close"))
 	}
+}
+
+func GetLogLevel(env string) slog.Level {
+	switch strings.ToLower(env) {
+	case "local":
+		return slog.LevelDebug
+	case "dev":
+		return slog.LevelInfo
+	case "prod":
+		return slog.LevelWarn
+	default:
+		return slog.LevelInfo
+	}
+}
+
+func InitLogger(env string) *slog.Logger {
+	lvl := GetLogLevel(env)
+	opts := &slog.HandlerOptions{
+		Level: lvl,
+	}
+	var handler slog.Handler
+	if env == "local" {
+		handler = slog.NewTextHandler(os.Stdout, opts)
+	} else {
+		handler = slog.NewJSONHandler(os.Stdout, opts)
+	}
+
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+
+	return logger
 }

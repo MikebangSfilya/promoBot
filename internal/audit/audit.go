@@ -1,51 +1,76 @@
 package audit
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 )
 
-func WriteFile(s []byte) error {
-	const op = "audit.WriteFile"
+type Storage interface {
+	Save(s any) error
+}
 
-	auditDir := os.Getenv("AUDIT_LOGS_DIR")
+type fileStorage struct {
+	filePath string
+}
+
+func NewFileStorage(auditDir string) (Storage, error) {
+	const op = "audit.NewFileStorage"
+
 	if auditDir == "" {
-		auditDir = "audit-logs" //
+		auditDir = "audit-logs"
+		slog.Info("no audit directory specified",
+			"default", auditDir,
+			"op", op)
+	}
+
+	if err := os.MkdirAll(auditDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create an audit dir: %w", err)
 	}
 
 	logPath := filepath.Join(auditDir, "audit.json")
-	dir := filepath.Dir(logPath)
-	
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		slog.Error("failed to create logs dir",
-			slog.Group("error",
-				slog.String("message", err.Error()),
-				slog.String("component", "audit.WriteFileI")))
-		return fmt.Errorf("%s: failed to create logs dir: %w", op, err)
-	}
-
 	absPath, _ := filepath.Abs(logPath)
-	slog.Info("writing audit", "path", absPath)
+	slog.Info("audit file location determined",
+		"path", absPath,
+		"op", op)
 
-	file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	return fileStorage{filePath: absPath}, nil
+}
+
+func (fs fileStorage) Save(s any) error {
+	const op = "audit.Save"
+
+	file, err := os.OpenFile(fs.filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		slog.Error("failed to open file",
-			slog.Group("error",
-				slog.String("message", err.Error()),
-				slog.String("component", "audit.WriteFile")))
 		return fmt.Errorf("%s: failed to open file: %w", op, err)
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			slog.Error("failed to close the audit file",
+				slog.Group("error",
+					slog.String("error", err.Error()),
+					slog.String("path", fs.filePath)),
+				slog.String("op", op))
+		}
+	}(file)
 
-	_, err = file.Write(s)
+	log, err := serialize(s)
 	if err != nil {
-		slog.Error("failed to write to file",
-			slog.Group("error",
-				slog.String("message", err.Error()),
-				slog.String("component", "audit.WriteFile")))
-		return fmt.Errorf("%s: failed to write to file: %w", op, err)
+		return fmt.Errorf("failed to serialize an audit log: %w", err)
+	}
+	if _, err = file.Write(log); err != nil {
+		return fmt.Errorf("failed to write to the audit file: %w", err)
 	}
 	return nil
+}
+
+func serialize(s any) ([]byte, error) {
+	b, err := json.Marshal(s)
+	if err != nil {
+		return nil, err
+	}
+	return append(b, '\n'), nil
 }

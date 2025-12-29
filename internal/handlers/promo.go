@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -39,34 +38,22 @@ const (
 	errNoPermission  = "errNoPermission"
 )
 
-type AuditLog struct {
-	Code   string `json:"code"`
-	Action string `json:"action"`
-	By     string `json:"by"`
-}
-
-func NewAuditLog(code, action, by string) AuditLog {
-	return AuditLog{
-		Code:   code,
-		Action: action,
-		By:     by,
-	}
-}
-
 type PromoHandler struct {
 	base.CommandHandlerTrait
 	common.PrivateCommandTrait
 
 	appEnv       *base.ApplicationEnv
 	stateStorage wizard.StateStorage
+	auditStorage audit.Storage
 
 	PromoService *repo.Promo
 }
 
-func NewPromoHandler(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage) *PromoHandler {
+func NewPromoHandler(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage, storage audit.Storage) *PromoHandler {
 	h := &PromoHandler{
 		appEnv:       appEnv,
 		stateStorage: stateStorage,
+		auditStorage: storage,
 		PromoService: repo.NewPromo(appEnv),
 	}
 	h.HandlerRefForTrait = h
@@ -186,8 +173,20 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 			reply(errToCreatePromo)
 			return
 		}
-		aud := NewAuditLog(modelToRepo.Code, "create", string(opts.UserName))
-		Audit(aud)
+
+		auditLog := audit.Log{
+			Code:   promoCode,
+			Action: "create",
+			By:     string(opts.UserName),
+		}
+
+		if err := h.auditStorage.Save(auditLog); err != nil {
+			slog.Error("failed to save audit log",
+				slog.Group("error",
+					slog.String("message", err.Error()),
+					slog.String("component", "PromoService.CreatePromo")))
+		}
+
 		message := fmt.Sprintf(
 			reqenv.Lang.Tr(fullMsg),
 			promoCode,
@@ -228,29 +227,6 @@ func extractPromoInfo(fields wizard.Fields, field string) string {
 	}
 
 	return fieldExtractedOut
-}
-
-func Audit(s AuditLog) {
-	const op = "PromoHandler.Audit"
-	log := slog.With("op", op)
-
-	b, err := json.Marshal(s)
-	if err != nil {
-		log.Error("failed to marshal audit",
-			slog.Group("error",
-				"message", err.Error(),
-				"string", s))
-		return
-	}
-	b = append(b, '\n')
-
-	if err := audit.WriteFile(b); err != nil {
-		log.Error("AUDIT FAILED: write error",
-			slog.Group("error",
-				"message", err.Error(),
-				"json", b))
-		return
-	}
 }
 
 func strToInt(s string) (int, error) {

@@ -178,7 +178,7 @@ func TestWriteFile(t *testing.T) {
 				tt.setupFunc(tmpDir)
 			}
 
-			err = WriteFile(tt.input)
+			err = Save(tt.input)
 
 			if tt.wantErr {
 				require.Error(t, err)
