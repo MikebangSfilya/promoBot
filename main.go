@@ -184,7 +184,7 @@ func establishConnections(ctx context.Context) (stateStorage wizard.StateStorage
 		os.Getenv(cfg.EnvPostgresPassword),
 		dbName)
 	db = storage.ConnectToDatabase(ctx, dbConfig)
-	// storage.RunMigrations(dbConfig, os.Getenv("MIGRATIONS_REPO"))
+	//storage.RunMigrations(dbConfig, os.Getenv("MIGRATIONS_REPO"))
 	metrics.RegisterMetricsForPgxPoolStat(db, dbName)
 	return
 }
