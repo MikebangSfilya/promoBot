@@ -89,9 +89,9 @@ func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 	reply := base.NewReplier(h.appEnv, reqEnv, msg)
 	opts, ok := reqEnv.Options.(config.UserOptions)
 	if !ok {
-		log.Error("failed to create a promo code",
+		log.Error("failed to cast Options to UserOptions",
 			slog.Group("error",
-				"message", "type assertion failed"))
+				slog.String("message", "type assertion failed")))
 		reply("failure")
 		return
 	}
@@ -184,7 +184,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 			slog.Error("failed to save audit log",
 				slog.Group("error",
 					slog.String("message", err.Error()),
-					slog.String("component", "PromoService.CreatePromo")))
+					slog.String("component", "auditStorage.Save")))
 		}
 
 		message := fmt.Sprintf(

@@ -23,8 +23,7 @@ func NewFileStorage(auditDir string) (Storage, error) {
 	if auditDir == "" {
 		auditDir = "audit-logs"
 		log.Info("no audit directory specified",
-			slog.String("default", auditDir),
-			slog.String("op", op))
+			slog.String("default", auditDir))
 	}
 
 	if err := os.MkdirAll(auditDir, 0755); err != nil {
@@ -34,8 +33,7 @@ func NewFileStorage(auditDir string) (Storage, error) {
 	logPath := filepath.Join(auditDir, "audit.json")
 	absPath, _ := filepath.Abs(logPath)
 	log.Info("audit file location determined",
-		slog.String("path", absPath),
-		slog.String("op", op))
+		slog.String("path", absPath))
 
 	return fileStorage{filePath: absPath}, nil
 }
@@ -52,7 +50,8 @@ func (fs fileStorage) Save(s any) error {
 		if err != nil {
 			slog.Error("failed to close the audit file",
 				slog.Group("error",
-					slog.String("error", err.Error()),
+					slog.String("message", err.Error()),
+					slog.String("component", "audit.Save"),
 					slog.String("path", fs.filePath)))
 		}
 	}(file)
