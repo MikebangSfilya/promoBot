@@ -7,7 +7,7 @@ import (
 	"os/signal"
 
 	"github.com/MikebangSfilya/promoBot/internal/audit"
-	"github.com/MikebangSfilya/promoBot/internal/config"
+	cfg "github.com/MikebangSfilya/promoBot/internal/config"
 
 	"strings"
 	"sync"
@@ -34,7 +34,7 @@ var (
 
 func main() {
 
-	DevLvl := os.Getenv("DEV_LVL")
+	DevLvl := os.Getenv(cfg.EnvDevLevel)
 	if DevLvl == "" {
 		DevLvl = "local"
 	}
@@ -46,13 +46,13 @@ func main() {
 
 	metrics.AddHttpHandlerForMetrics()
 
-	srv := server.Start(os.Getenv("APP_PORT"))
+	srv := server.Start(os.Getenv(cfg.EnvAppPort))
 
 	stateStorage, db := establishConnections(ctx)
 
-	bot, err := tgbotapi.NewBotAPI(os.Getenv("API_TOKEN"))
+	bot, err := tgbotapi.NewBotAPI(os.Getenv(cfg.EnvAPIToken))
 	if err != nil {
-		slog.Error("failed to create bot API",
+		log.Error("failed to create bot API",
 			slog.Group("error",
 				slog.String("message", err.Error()),
 				slog.String("component", "tgbotapi.NewBotAPI")))
@@ -61,13 +61,16 @@ func main() {
 
 	api := base.NewBotAPI(bot)
 
-	debugMode := os.Getenv("DEBUG")
+	debugMode := os.Getenv(cfg.EnvDebug)
 	bot.Debug = strings.ToLower(debugMode) == "true" || debugMode == "1"
 
-	filePath := "audit-logs"
+	filePath := ""
 	if DevLvl == "dev" {
-		filePath = os.Getenv("AUDIT_LOGS_DIR")
+		filePath = os.Getenv(cfg.EnvAuditLogsDir)
+	} else {
+		filePath = cfg.LocalLogDir
 	}
+
 	log.Debug("filePath", "path", filePath)
 
 	auditStorage, err := audit.NewFileStorage(filePath)
@@ -88,8 +91,8 @@ func main() {
 	messageHandlers, callbackHandlers := initHandlers(appenv, stateStorage, auditStorage)
 	api.SetCommands(locpool, supportedLanguages, base.ConvertHandlersToCommands(messageHandlers))
 
-	usersConfigPath := os.Getenv("USERS_CONFIG_FILE")
-	usersConfig, err := config.NewUsersConfig(usersConfigPath)
+	usersConfigPath := os.Getenv(cfg.EnvUsersConfigFile)
+	usersConfig, err := cfg.NewUsersConfig(usersConfigPath)
 	if err != nil {
 		slog.Error("failed to read users configuration file",
 			slog.Group("error",
@@ -113,8 +116,8 @@ func main() {
 	if wasPopulated := wizard.PopulateWizardDescriptors(messageHandlers); !wasPopulated {
 		slog.Error("failed to populate wizard descriptors",
 			slog.Group("error",
-				"message", "wizard initialization failed",
-				"component", "wizard.PopulateWizardDescriptors"))
+				slog.String("message", "wizard initialization failed"),
+				slog.String("component", "wizard.PopulateWizardDescriptors")))
 		os.Exit(1)
 	}
 
@@ -127,8 +130,8 @@ func main() {
 		if _, err := bot.Request(tgbotapi.DeleteWebhookConfig{}); err != nil {
 			slog.Error("failed to delete webhook",
 				slog.Group("error",
-					"message", err.Error(),
-					"component", "bot.Request.DeleteWebhook"))
+					slog.String("message", err.Error()),
+					slog.String("component", "bot.Request.DeleteWebhook")))
 			os.Exit(1)
 		}
 
@@ -160,25 +163,25 @@ func main() {
 }
 
 func establishConnections(ctx context.Context) (stateStorage wizard.StateStorage, db *pgxpool.Pool) {
-	commandStateTTL, err := time.ParseDuration(os.Getenv("COMMAND_STATE_TTL"))
+	commandStateTTL, err := time.ParseDuration(os.Getenv(cfg.EnvCommandStateTTL))
 	if err != nil {
 		slog.Error("failed to parse COMMAND_STATE_TTL",
 			slog.Group("error",
-				"message", err.Error(),
-				"value", os.Getenv("COMMAND_STATE_TTL")))
+				slog.String("message", err.Error()),
+				slog.String("value", os.Getenv(cfg.EnvCommandStateTTL))))
 		os.Exit(1)
 	}
 	stateStorage = wizard.ConnectToRedis(ctx, commandStateTTL, &redis.Options{
-		Addr:     os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT"),
-		Password: os.Getenv("REDIS_PASSWORD"),
+		Addr:     os.Getenv(cfg.EnvRedisHost) + ":" + os.Getenv(cfg.EnvRedisPort),
+		Password: os.Getenv(cfg.EnvRedisPassword),
 		DB:       0,
 	})
-	dbName := os.Getenv("POSTGRES_DB")
+	dbName := os.Getenv(cfg.EnvPostgresDB)
 	dbConfig := storage.NewDatabaseConfig(
-		os.Getenv("POSTGRES_HOST"),
-		os.Getenv("POSTGRES_PORT"),
-		os.Getenv("POSTGRES_USER"),
-		os.Getenv("POSTGRES_PASSWORD"),
+		os.Getenv(cfg.EnvPostgresHost),
+		os.Getenv(cfg.EnvPostgresPort),
+		os.Getenv(cfg.EnvPostgresUser),
+		os.Getenv(cfg.EnvPostgresPassword),
 		dbName)
 	db = storage.ConnectToDatabase(ctx, dbConfig)
 	// storage.RunMigrations(dbConfig, os.Getenv("MIGRATIONS_REPO"))
@@ -203,8 +206,8 @@ func shutdown(stateStorage wizard.StateStorage, db *pgxpool.Pool) {
 	if err := stateStorage.Close(); err != nil {
 		slog.Error("failed to close state storage",
 			slog.Group("error",
-				"message", err.Error(),
-				"component", "StateStorage.Close"))
+				slog.String("message", err.Error()),
+				slog.String("component", "StateStorage.Close")))
 	}
 }
 

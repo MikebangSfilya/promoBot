@@ -2,3 +2,6 @@
 users.yaml
 .idea/
 bin/
+
+#
+audit-logs
