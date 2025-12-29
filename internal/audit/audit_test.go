@@ -8,45 +8,57 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWriteFile(t *testing.T) {
+func TestFileStorage_Save(t *testing.T) {
 	tests := []struct {
 		name         string
-		input        []byte
+		input        any
 		setupFunc    func(tmpDir string)
 		wantErr      bool
 		validateFunc func(t *testing.T, tmpDir string)
 	}{
 		{
-			name:    "successful write to new file",
-			input:   []byte(`{"code":"test","action":"created","by":"admin"}`),
+			name: "successful write to new file",
+			input: map[string]string{
+				"code":   "test",
+				"action": "created",
+				"by":     "admin",
+			},
 			wantErr: false,
 			validateFunc: func(t *testing.T, tmpDir string) {
 				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
 				content, err := os.ReadFile(logPath)
 				require.NoError(t, err)
-				require.Equal(t, `{"code":"test","action":"created","by":"admin"}`, string(content))
+				require.Equal(t, "{\"action\":\"created\",\"by\":\"admin\",\"code\":\"test\"}\n", string(content))
 			},
 		},
 		{
-			name:    "append to existing file",
-			input:   []byte(`{"code":"second","action":"updated","by":"user"}`),
+			name: "append to existing file",
+			input: map[string]string{
+				"code":   "second",
+				"action": "updated",
+				"by":     "user",
+			},
 			wantErr: false,
 			setupFunc: func(tmpDir string) {
 				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
 				os.MkdirAll(filepath.Dir(logPath), 0755)
-				os.WriteFile(logPath, []byte(`{"code":"first","action":"created","by":"admin"}`), 0644)
+				os.WriteFile(logPath, []byte("{\"code\":\"first\",\"action\":\"created\",\"by\":\"admin\"}\n"), 0644)
 			},
 			validateFunc: func(t *testing.T, tmpDir string) {
 				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
 				content, err := os.ReadFile(logPath)
 				require.NoError(t, err)
-				expected := `{"code":"first","action":"created","by":"admin"}{"code":"second","action":"updated","by":"user"}`
-				require.Equal(t, expected, string(content))
+				require.Contains(t, string(content), "\"code\":\"first\"")
+				require.Contains(t, string(content), "\"code\":\"second\"")
 			},
 		},
 		{
-			name:    "create directory if not exists",
-			input:   []byte(`{"code":"new","action":"created","by":"system"}`),
+			name: "create directory if not exists",
+			input: map[string]string{
+				"code":   "new",
+				"action": "created",
+				"by":     "system",
+			},
 			wantErr: false,
 			validateFunc: func(t *testing.T, tmpDir string) {
 				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
@@ -55,49 +67,28 @@ func TestWriteFile(t *testing.T) {
 			},
 		},
 		{
-			name:    "write empty data",
-			input:   []byte{},
+			name:    "write empty struct",
+			input:   struct{}{},
 			wantErr: false,
 			validateFunc: func(t *testing.T, tmpDir string) {
 				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
 				content, err := os.ReadFile(logPath)
 				require.NoError(t, err)
-				require.Empty(t, content)
+				require.Equal(t, "{}\n", string(content))
 			},
 		},
 		{
-			name:    "cannot create directory - file with same name exists",
-			input:   []byte(`{"code":"fail","action":"created","by":"test"}`),
-			wantErr: true,
-			setupFunc: func(tmpDir string) {
-				// Create file blocking directory creation
-				os.WriteFile(filepath.Join(tmpDir, "audit-logs"), []byte("block"), 0644)
+			name: "attempt to write to readonly file",
+			input: map[string]string{
+				"code":   "readonly",
+				"action": "updated",
+				"by":     "test",
 			},
-		},
-		{
-			name:    "attempt to write to readonly directory",
-			input:   []byte(`{"code":"readonly","action":"created","by":"test"}`),
-			wantErr: true,
-			setupFunc: func(tmpDir string) {
-				// Create readonly directory
-				logDir := filepath.Join(tmpDir, "audit-logs")
-				os.MkdirAll(logDir, 0755)
-				os.Chmod(logDir, 0444) // readonly
-			},
-			validateFunc: func(t *testing.T, tmpDir string) {
-				// Restore permissions for cleanup
-				logDir := filepath.Join(tmpDir, "audit-logs")
-				os.Chmod(logDir, 0755)
-			},
-		},
-		{
-			name:    "attempt to write to readonly file",
-			input:   []byte(`{"code":"readonly","action":"updated","by":"test"}`),
 			wantErr: true,
 			setupFunc: func(tmpDir string) {
 				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
 				os.MkdirAll(filepath.Dir(logPath), 0755)
-				os.WriteFile(logPath, []byte(`{"existing":"data"}`), 0644)
+				os.WriteFile(logPath, []byte("{\"existing\":\"data\"}\n"), 0644)
 				os.Chmod(logPath, 0444) // readonly file
 			},
 			validateFunc: func(t *testing.T, tmpDir string) {
@@ -113,72 +104,61 @@ func TestWriteFile(t *testing.T) {
 				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
 				content, err := os.ReadFile(logPath)
 				require.NoError(t, err)
-				require.Empty(t, content, "nil should create empty file")
+				require.Equal(t, "null\n", string(content))
 			},
 		},
 		{
-			name:    "write invalid JSON",
-			input:   []byte(`{"code":"invalid","action":broken json}`),
+			name: "write nested structure",
+			input: map[string]any{
+				"code":   "nested",
+				"action": "created",
+				"meta": map[string]string{
+					"ip":   "127.0.0.1",
+					"user": "admin",
+				},
+			},
 			wantErr: false,
 			validateFunc: func(t *testing.T, tmpDir string) {
 				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
 				content, err := os.ReadFile(logPath)
 				require.NoError(t, err)
-				require.NotEmpty(t, content)
+				require.Contains(t, string(content), "\"meta\"")
+				require.Contains(t, string(content), "\"ip\"")
 			},
 		},
 		{
-			name:    "write very large data volume",
-			input:   make([]byte, 10*1024*1024), // 10MB
-			wantErr: false,
-			validateFunc: func(t *testing.T, tmpDir string) {
-				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
-				info, err := os.Stat(logPath)
-				require.NoError(t, err)
-				require.Equal(t, int64(10*1024*1024), info.Size())
+			name: "special characters in data",
+			input: map[string]string{
+				"code":   "test\t\n\r",
+				"action": "created",
+				"by":     "admin",
 			},
-		},
-		{
-			name:    "multiple newline characters",
-			input:   []byte("{\n\n\n\"code\":\"test\"\n\n}"),
 			wantErr: false,
 			validateFunc: func(t *testing.T, tmpDir string) {
 				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
 				content, err := os.ReadFile(logPath)
 				require.NoError(t, err)
-				require.Contains(t, string(content), "\n\n\n")
-			},
-		},
-		{
-			name:    "special characters in data",
-			input:   []byte(`{"code":"test\u0000\t\n\r","action":"created","by":"admin"}`),
-			wantErr: false,
-			validateFunc: func(t *testing.T, tmpDir string) {
-				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
-				content, err := os.ReadFile(logPath)
-				require.NoError(t, err)
-				require.Contains(t, string(content), "\\u0000")
+				require.Contains(t, string(content), "\\t")
+				require.Contains(t, string(content), "\\n")
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create temporary directory
 			tmpDir := t.TempDir()
-
-			originalWd, err := os.Getwd()
-			require.NoError(t, err)
-			defer os.Chdir(originalWd)
-
-			err = os.Chdir(tmpDir)
-			require.NoError(t, err)
 
 			if tt.setupFunc != nil {
 				tt.setupFunc(tmpDir)
 			}
 
-			err = Save(tt.input)
+			// Create storage with temp directory
+			auditDir := filepath.Join(tmpDir, "audit-logs")
+			storage, err := NewFileStorage(auditDir)
+			require.NoError(t, err)
+
+			// Call Save
+			err = storage.Save(tt.input)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -191,4 +171,39 @@ func TestWriteFile(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewFileStorage(t *testing.T) {
+	t.Run("creates directory if not exists", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		auditDir := filepath.Join(tmpDir, "new-audit-logs")
+
+		storage, err := NewFileStorage(auditDir)
+		require.NoError(t, err)
+		require.NotNil(t, storage)
+
+		_, err = os.Stat(auditDir)
+		require.NoError(t, err, "directory should be created")
+	})
+
+	t.Run("uses default directory when empty string", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		originalWd, _ := os.Getwd()
+		defer os.Chdir(originalWd)
+		os.Chdir(tmpDir)
+
+		storage, err := NewFileStorage("")
+		require.NoError(t, err)
+		require.NotNil(t, storage)
+
+		_, err = os.Stat("audit-logs")
+		require.NoError(t, err)
+	})
+
+	t.Run("fails when cannot create directory", func(t *testing.T) {
+		// Try to create directory in non-existent path with no permissions
+		storage, err := NewFileStorage("/root/forbidden/audit-logs")
+		require.Error(t, err)
+		require.Nil(t, storage)
+	})
 }
