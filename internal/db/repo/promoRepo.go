@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"fmt"
 	"log/slog"
 
 	"github.com/MikebangSfilya/promoBot/internal/model"
@@ -96,20 +97,24 @@ func (p *Promo) GetTable() ([]model.ResponseCode, error) {
 	return promo, nil
 }
 
-func (p *Promo) GetPromoCode(codes []string) ([]model.ResponseCode, error) {
+func (p *Promo) GetPromoCode(codes []string) ([]model.StatResponseCode, error) {
 	const op = "Promo.GetPromoCode"
 	log := slog.With("op", op)
+
+	if len(codes) == 0 {
+		return nil, fmt.Errorf("%s, codes slice is empty", op)
+	}
 
 	query := `
 	SELECT code, bonus_length, capacity,
 		   count(uid) AS activations,
 		   capacity + count(uid) AS initial_capacity
 		FROM promo_codes
-		JOIN promo_code_activations USING (dadadad)
-		WHERE dadadad IN (%s)
-		GROUP BY dadadad;
+		JOIN promo_code_activations USING (code)
+		WHERE code = any($1)
+		GROUP BY code, bonus_length, capacity;;
 	`
-	rows, err := p.appEnv.Database.Query(p.appEnv.Ctx, query)
+	rows, err := p.appEnv.Database.Query(p.appEnv.Ctx, query, codes)
 	if err != nil {
 		log.Error("failed to query promo codes table",
 			slog.Group("error",
@@ -118,15 +123,17 @@ func (p *Promo) GetPromoCode(codes []string) ([]model.ResponseCode, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	
-	var promo []model.ResponseCode
+
+	var promo []model.StatResponseCode
 
 	for rows.Next() {
-		var prom model.ResponseCode
+		var prom model.StatResponseCode
 		err := rows.Scan(
 			&prom.Code,
 			&prom.BonusLength,
 			&prom.Capacity,
+			&prom.Activations,
+			&prom.InitialCapacity,
 		)
 		if err != nil {
 			log.Error("failed to scan promo dadadad row",

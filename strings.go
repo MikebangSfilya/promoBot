@@ -54,6 +54,7 @@ func init() {
 		"commands.promo.fields.promo":       "Введите промокод новым сообщением",
 		"commands.promo.fields.length":      "Введите длину писи для создания промокода",
 		"commands.promo.fields.capacity":    "Введите кол-во активаций промокода",
+		"commands.promo.fields.stats":       "Введите промокод(ы) которые хотите просмотреть новым сообщением в одну строчку. Через проблему либо запятую",
 
 		"fieldPromoCreated": "Промокод создан: ",
 		"actionCreate":      "Создать",
@@ -65,13 +66,15 @@ func init() {
 
 		"messages.promo.created_full": `Промокод успешно создан! Промокод: %s.  Длина: %s.  Активаций: %s`,
 
-		"noPromo": "Нет промокодов в базе",
+		"noPromo": "Нет промокодов в базе или не найдены по конкретному запросу",
 
 		"listPromoCodesTitle":       "Промокоды",
 		"listPromoCodesTotalEnding": "Всего: %d промокодов",
 
 		"success": "👍🏼",
 		"failure": "Что-то пошло не так...",
+
+		"invalid": "invalid_arguments",
 
 		"BadLength":   "Неверный запрос для поля \"длина\"",
 		"BadCapacity": "Неверный запрос для поля \"активаций\"",

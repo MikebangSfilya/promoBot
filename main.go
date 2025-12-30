@@ -164,10 +164,15 @@ func establishConnections(ctx context.Context) (stateStorage wizard.StateStorage
 }
 
 func initHandlers(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage) (messageHandlers []base.MessageHandler, callbackHandlers []base.CallbackHandler) {
+	promo := handlers.NewPromoHandler(appEnv, stateStorage)
 	messageHandlers = []base.MessageHandler{
 		handlers.NewGetHandler(appEnv),
-		handlers.NewPromoHandler(appEnv, stateStorage),
+		promo,
+		handlers.NewStats(promo),
 	}
+	slog.Info("init handlers",
+		slog.Group("handlers",
+			"messageHandlers", messageHandlers))
 	callbackHandlers = []base.CallbackHandler{
 		// handlers.NewRevokeCallbackHandler(appEnv),
 	}
