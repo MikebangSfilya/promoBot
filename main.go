@@ -64,12 +64,7 @@ func main() {
 	debugMode := os.Getenv(cfg.EnvDebug)
 	bot.Debug = strings.ToLower(debugMode) == "true" || debugMode == "1"
 
-	filePath := ""
-	if DevLvl == "dev" {
-		filePath = os.Getenv(cfg.EnvAuditLogsDir)
-	} else {
-		filePath = cfg.LocalLogDir
-	}
+	filePath := os.Getenv(cfg.EnvAuditLogsDir)
 
 	log.Debug("filePath", "path", filePath)
 

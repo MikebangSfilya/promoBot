@@ -36,15 +36,6 @@ const (
 	EnvPostgresUser     = "POSTGRES_USER"
 	EnvPostgresPassword = "POSTGRES_PASSWORD"
 	EnvMigrationsRepo   = "MIGRATIONS_REPO"
-
-	EnvButtonsPerRow     = "BUTTONS_PER_ROW"
-	EnvRequiredApprovals = "REQUIRED_APPROVALS"
-	EnvAdminChatID       = "ADMIN_CHAT_ID"
-	EnvChannelID         = "CHANNEL_ID"
-	EnvChannelName       = "CHANNEL_NAME"
-
-	// Localization
-	EnvSupportedLanguages = "SUPPORTED_LANGUAGES"
 )
 
 const (
