@@ -170,9 +170,6 @@ func initHandlers(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage)
 		promo,
 		handlers.NewStats(promo),
 	}
-	slog.Info("init handlers",
-		slog.Group("handlers",
-			"messageHandlers", messageHandlers))
 	callbackHandlers = []base.CallbackHandler{
 		// handlers.NewRevokeCallbackHandler(appEnv),
 	}

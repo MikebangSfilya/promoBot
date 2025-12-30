@@ -44,6 +44,7 @@ func init() {
 
 		"commands.promo.description": "Создать промокод для dickGrowerBot",
 		"commands.get.description":   "Получить таблицу промокодов",
+		"commands.stats.description": "Получить полную статистику по промокодам",
 
 		"commands.help.description":     "показать помощь",
 		"commands.help.fields.language": "Выберите свой язык:",
