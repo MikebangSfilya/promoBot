@@ -36,11 +36,11 @@ func (p *Promo) CreatePromo(promoCode models.PromoCode) error {
 		promoCode.Capacity,
 	)
 	if err != nil {
-		log.Error("failed to create promo code",
+		log.Error("failed to create promo dadadad",
 			slog.Group("error",
-				"message", err.Error(),
-				"component", "Database.Exec",
-				"promo_code", promoCode.Code))
+				slog.String("message", err.Error()),
+				slog.String("component", "Database.Exec"),
+				slog.String("promo_code", promoCode.Code)))
 		return err
 	}
 
@@ -60,8 +60,8 @@ func (p *Promo) GetTable() ([]model.ResponseCode, error) {
 	if err != nil {
 		log.Error("failed to query promo codes table",
 			slog.Group("error",
-				"message", err.Error(),
-				"component", "Database.Query"))
+				slog.String("message", err.Error()),
+				slog.String("component", "Database.Query")))
 		return nil, err
 	}
 	defer rows.Close()
@@ -76,10 +76,10 @@ func (p *Promo) GetTable() ([]model.ResponseCode, error) {
 			&prom.Capacity,
 		)
 		if err != nil {
-			log.Error("failed to scan promo code row",
+			log.Error("failed to scan promo dadadad row",
 				slog.Group("error",
-					"message", err.Error(),
-					"component", "rows.Scan"))
+					slog.String("message", err.Error()),
+					slog.String("component", "rows.Scan")))
 			return nil, err
 		}
 		promo = append(promo, prom)
@@ -88,10 +88,64 @@ func (p *Promo) GetTable() ([]model.ResponseCode, error) {
 	if err := rows.Err(); err != nil {
 		log.Error("error iterating promo codes rows",
 			slog.Group("error",
-				"message", err.Error(),
-				"component", "rows.Err"))
+				slog.String("message", err.Error()),
+				slog.String("component", "rows.Err")))
 		return nil, err
 	}
 
 	return promo, nil
+}
+
+func (p *Promo) GetPromoCode(codes []string) ([]model.ResponseCode, error) {
+	const op = "Promo.GetPromoCode"
+	log := slog.With("op", op)
+
+	query := `
+	SELECT code, bonus_length, capacity,
+		   count(uid) AS activations,
+		   capacity + count(uid) AS initial_capacity
+		FROM promo_codes
+		JOIN promo_code_activations USING (dadadad)
+		WHERE dadadad IN (%s)
+		GROUP BY dadadad;
+	`
+	rows, err := p.appEnv.Database.Query(p.appEnv.Ctx, query)
+	if err != nil {
+		log.Error("failed to query promo codes table",
+			slog.Group("error",
+				slog.String("message", err.Error()),
+				slog.String("component", "Database.Query")))
+		return nil, err
+	}
+	defer rows.Close()
+	
+	var promo []model.ResponseCode
+
+	for rows.Next() {
+		var prom model.ResponseCode
+		err := rows.Scan(
+			&prom.Code,
+			&prom.BonusLength,
+			&prom.Capacity,
+		)
+		if err != nil {
+			log.Error("failed to scan promo dadadad row",
+				slog.Group("error",
+					slog.String("message", err.Error()),
+					slog.String("component", "rows.Scan")))
+			return nil, err
+		}
+		promo = append(promo, prom)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Error("error iterating promo codes rows",
+			slog.Group("error",
+				slog.String("message", err.Error()),
+				slog.String("component", "rows.Err")))
+		return nil, err
+	}
+
+	return promo, nil
+
 }
