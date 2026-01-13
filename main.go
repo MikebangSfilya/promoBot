@@ -6,7 +6,8 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/MikebangSfilya/promoBot/internal/config"
+	"github.com/MikebangSfilya/promoBot/internal/audit"
+	cfg "github.com/MikebangSfilya/promoBot/internal/config"
 
 	"strings"
 	"sync"
@@ -33,28 +34,48 @@ var (
 
 func main() {
 
+	DevLvl := os.Getenv(cfg.EnvDevLevel)
+	if DevLvl == "" {
+		DevLvl = "local"
+	}
+	log := InitLogger(DevLvl)
+	log.Info("starting up", "devLvl", DevLvl)
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	metrics.AddHttpHandlerForMetrics()
 
-	srv := server.Start(os.Getenv("APP_PORT"))
+	srv := server.Start(os.Getenv(cfg.EnvAppPort))
 
 	stateStorage, db := establishConnections(ctx)
 
-	bot, err := tgbotapi.NewBotAPI(os.Getenv("API_TOKEN"))
+	bot, err := tgbotapi.NewBotAPI(os.Getenv(cfg.EnvAPIToken))
 	if err != nil {
-		slog.Error("failed to create bot API",
+		log.Error("failed to create bot API",
 			slog.Group("error",
-				"message", err.Error(),
-				"component", "tgbotapi.NewBotAPI"))
+				slog.String("message", err.Error()),
+				slog.String("component", "tgbotapi.NewBotAPI")))
 		os.Exit(1)
 	}
 
 	api := base.NewBotAPI(bot)
 
-	debugMode := os.Getenv("DEBUG")
+	debugMode := os.Getenv(cfg.EnvDebug)
 	bot.Debug = strings.ToLower(debugMode) == "true" || debugMode == "1"
+
+	filePath := os.Getenv(cfg.EnvAuditLogsDir)
+
+	log.Debug("filePath", "path", filePath)
+
+	auditStorage, err := audit.NewFileStorage(filePath)
+	if err != nil {
+		log.Error("failed to initialize audit storage",
+			slog.Group("error",
+				slog.String("message", err.Error()),
+				slog.String("component", "InitAudit")))
+		os.Exit(1)
+	}
 
 	appenv := &base.ApplicationEnv{
 		Bot:      api,
@@ -62,11 +83,11 @@ func main() {
 		Ctx:      ctx,
 	}
 
-	messageHandlers, callbackHandlers := initHandlers(appenv, stateStorage)
+	messageHandlers, callbackHandlers := initHandlers(appenv, stateStorage, auditStorage)
 	api.SetCommands(locpool, supportedLanguages, base.ConvertHandlersToCommands(messageHandlers))
 
-	usersConfigPath := os.Getenv("USERS_CONFIG_FILE")
-	usersConfig, err := config.NewUsersConfig(usersConfigPath)
+	usersConfigPath := os.Getenv(cfg.EnvUsersConfigFile)
+	usersConfig, err := cfg.NewUsersConfig(usersConfigPath)
 	if err != nil {
 		slog.Error("failed to read users configuration file",
 			slog.Group("error",
@@ -90,8 +111,8 @@ func main() {
 	if wasPopulated := wizard.PopulateWizardDescriptors(messageHandlers); !wasPopulated {
 		slog.Error("failed to populate wizard descriptors",
 			slog.Group("error",
-				"message", "wizard initialization failed",
-				"component", "wizard.PopulateWizardDescriptors"))
+				slog.String("message", "wizard initialization failed"),
+				slog.String("component", "wizard.PopulateWizardDescriptors")))
 		os.Exit(1)
 	}
 
@@ -104,8 +125,8 @@ func main() {
 		if _, err := bot.Request(tgbotapi.DeleteWebhookConfig{}); err != nil {
 			slog.Error("failed to delete webhook",
 				slog.Group("error",
-					"message", err.Error(),
-					"component", "bot.Request.DeleteWebhook"))
+					slog.String("message", err.Error()),
+					slog.String("component", "bot.Request.DeleteWebhook")))
 			os.Exit(1)
 		}
 
@@ -137,36 +158,36 @@ func main() {
 }
 
 func establishConnections(ctx context.Context) (stateStorage wizard.StateStorage, db *pgxpool.Pool) {
-	commandStateTTL, err := time.ParseDuration(os.Getenv("COMMAND_STATE_TTL"))
+	commandStateTTL, err := time.ParseDuration(os.Getenv(cfg.EnvCommandStateTTL))
 	if err != nil {
 		slog.Error("failed to parse COMMAND_STATE_TTL",
 			slog.Group("error",
-				"message", err.Error(),
-				"value", os.Getenv("COMMAND_STATE_TTL")))
+				slog.String("message", err.Error()),
+				slog.String("value", os.Getenv(cfg.EnvCommandStateTTL))))
 		os.Exit(1)
 	}
 	stateStorage = wizard.ConnectToRedis(ctx, commandStateTTL, &redis.Options{
-		Addr:     os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT"),
-		Password: os.Getenv("REDIS_PASSWORD"),
+		Addr:     os.Getenv(cfg.EnvRedisHost) + ":" + os.Getenv(cfg.EnvRedisPort),
+		Password: os.Getenv(cfg.EnvRedisPassword),
 		DB:       0,
 	})
-	dbName := os.Getenv("POSTGRES_DB")
+	dbName := os.Getenv(cfg.EnvPostgresDB)
 	dbConfig := storage.NewDatabaseConfig(
-		os.Getenv("POSTGRES_HOST"),
-		os.Getenv("POSTGRES_PORT"),
-		os.Getenv("POSTGRES_USER"),
-		os.Getenv("POSTGRES_PASSWORD"),
+		os.Getenv(cfg.EnvPostgresHost),
+		os.Getenv(cfg.EnvPostgresPort),
+		os.Getenv(cfg.EnvPostgresUser),
+		os.Getenv(cfg.EnvPostgresPassword),
 		dbName)
 	db = storage.ConnectToDatabase(ctx, dbConfig)
-	// storage.RunMigrations(dbConfig, os.Getenv("MIGRATIONS_REPO"))
+	//storage.RunMigrations(dbConfig, os.Getenv("MIGRATIONS_REPO"))
 	metrics.RegisterMetricsForPgxPoolStat(db, dbName)
 	return
 }
 
-func initHandlers(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage) (messageHandlers []base.MessageHandler, callbackHandlers []base.CallbackHandler) {
+func initHandlers(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage, auditStorage audit.Storage) (messageHandlers []base.MessageHandler, callbackHandlers []base.CallbackHandler) {
 	messageHandlers = []base.MessageHandler{
 		handlers.NewGetHandler(appEnv),
-		handlers.NewPromoHandler(appEnv, stateStorage),
+		handlers.NewPromoHandler(appEnv, stateStorage, auditStorage),
 	}
 	callbackHandlers = []base.CallbackHandler{
 		// handlers.NewRevokeCallbackHandler(appEnv),
@@ -180,7 +201,38 @@ func shutdown(stateStorage wizard.StateStorage, db *pgxpool.Pool) {
 	if err := stateStorage.Close(); err != nil {
 		slog.Error("failed to close state storage",
 			slog.Group("error",
-				"message", err.Error(),
-				"component", "StateStorage.Close"))
+				slog.String("message", err.Error()),
+				slog.String("component", "StateStorage.Close")))
 	}
+}
+
+func GetLogLevel(env string) slog.Level {
+	switch strings.ToLower(env) {
+	case "local":
+		return slog.LevelDebug
+	case "dev":
+		return slog.LevelInfo
+	case "prod":
+		return slog.LevelWarn
+	default:
+		return slog.LevelInfo
+	}
+}
+
+func InitLogger(env string) *slog.Logger {
+	lvl := GetLogLevel(env)
+	opts := &slog.HandlerOptions{
+		Level: lvl,
+	}
+	var handler slog.Handler
+	if env == "local" {
+		handler = slog.NewTextHandler(os.Stdout, opts)
+	} else {
+		handler = slog.NewJSONHandler(os.Stdout, opts)
+	}
+
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+
+	return logger
 }

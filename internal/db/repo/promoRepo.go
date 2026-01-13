@@ -60,8 +60,8 @@ func (p *Promo) GetTable() ([]model.ResponseCode, error) {
 	if err != nil {
 		log.Error("failed to query promo codes table",
 			slog.Group("error",
-				"message", err.Error(),
-				"component", "Database.Query"))
+				slog.String("message", err.Error()),
+				slog.String("component", "Database.Query")))
 		return nil, err
 	}
 	defer rows.Close()
@@ -78,8 +78,8 @@ func (p *Promo) GetTable() ([]model.ResponseCode, error) {
 		if err != nil {
 			log.Error("failed to scan promo code row",
 				slog.Group("error",
-					"message", err.Error(),
-					"component", "rows.Scan"))
+					slog.String("message", err.Error()),
+					slog.String("component", "rows.Scan")))
 			return nil, err
 		}
 		promo = append(promo, prom)
@@ -88,8 +88,8 @@ func (p *Promo) GetTable() ([]model.ResponseCode, error) {
 	if err := rows.Err(); err != nil {
 		log.Error("error iterating promo codes rows",
 			slog.Group("error",
-				"message", err.Error(),
-				"component", "rows.Err"))
+				slog.String("message", err.Error()),
+				slog.String("component", "rows.Err")))
 		return nil, err
 	}
 

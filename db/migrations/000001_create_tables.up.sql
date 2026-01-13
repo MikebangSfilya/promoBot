@@ -7,12 +7,11 @@ CREATE TABLE IF NOT EXISTS Promo_Codes (
     capacity integer NOT NULL CHECK ( capacity >= 0 )
 );
 
--- ну и не трогал эту таблу
+-- Well, I didn't touch that board.
 CREATE TABLE IF NOT EXISTS Promo_Code_Activations (
-    uid bigint NOT NULL, -- тут удалил связанный ключ
+    uid bigint NOT NULL, -- here I deleted the foreign key
     code varchar(16) REFERENCES Promo_Codes(code),
     affected_chats integer NOT NULL,
 
     PRIMARY KEY (uid, code)
 );
-

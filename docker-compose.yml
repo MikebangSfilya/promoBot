@@ -3,6 +3,7 @@ services:
     build: .
     image: mikebangsfilya/promobot
     container_name: promo-bot
+    user: "10001:10001"
     restart: unless-stopped
     depends_on:
       redis:
@@ -14,6 +15,7 @@ services:
     environment:
       - API_TOKEN
       - DEBUG
+      - DEV_LVL
       - COMMAND_STATE_TTL
       - APP_PORT
       - APP_PATH
@@ -29,10 +31,12 @@ services:
       - WEBHOOK_PORT
       - WEBHOOK_PATH
       - USERS_CONFIG_FILE=/cfg/users.yaml
+      - AUDIT_LOGS_DIR=/app/audit-logs
     expose:
       - ${APP_PORT}
     volumes:
       - ./cfg:/cfg
+      - ./audit-logs:/app/audit-logs
     networks:
       - promo-bot-network
     logging:
