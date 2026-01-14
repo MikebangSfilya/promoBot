@@ -37,7 +37,7 @@ func (p *Promo) CreatePromo(promoCode models.PromoCode) error {
 		promoCode.Capacity,
 	)
 	if err != nil {
-		log.Error("failed to create promo dadadad",
+		log.Error("failed to create promo code",
 			slog.Group("error",
 				slog.String("message", err.Error()),
 				slog.String("component", "Database.Exec"),
@@ -77,7 +77,7 @@ func (p *Promo) GetTable() ([]model.ResponseCode, error) {
 			&prom.Capacity,
 		)
 		if err != nil {
-			log.Error("failed to scan promo dadadad row",
+			log.Error("failed to scan promo code row",
 				slog.Group("error",
 					slog.String("message", err.Error()),
 					slog.String("component", "rows.Scan")))
@@ -136,7 +136,7 @@ func (p *Promo) GetPromoCode(codes []string) ([]model.StatResponseCode, error) {
 			&prom.InitialCapacity,
 		)
 		if err != nil {
-			log.Error("failed to scan promo dadadad row",
+			log.Error("failed to scan promo code row",
 				slog.Group("error",
 					slog.String("message", err.Error()),
 					slog.String("component", "rows.Scan")))

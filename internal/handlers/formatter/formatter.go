@@ -5,8 +5,20 @@ import (
 	"strings"
 )
 
+const (
+	maxCodeLength = 22
+	lineOverhead  = 6
+	maxLineLength = lineOverhead + maxCodeLength
+)
+
 func FormatList[T fmt.Stringer](title, ending string, items []T) string {
+
+	headingEndingLenghts := len(title) + 5 + len(ending)
+	bufferSize := headingEndingLenghts + len(items)*maxLineLength
+
 	sb := strings.Builder{}
+	sb.Grow(bufferSize)
+
 	sb.WriteString(title)
 	sb.WriteString(": \n\n")
 

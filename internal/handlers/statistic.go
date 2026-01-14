@@ -78,33 +78,7 @@ func (h *Stats) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 	codesInput := msg.CommandArguments()
 
 	if len(codesInput) > 0 {
-		argSlice := ParseArguments(codesInput)
-		if len(argSlice) == 0 {
-			reply(invalidArgs)
-			return
-		}
-		codes, err := h.PromoService.GetPromoCode(argSlice)
-		if err != nil {
-			log.Error("failed to get promo code",
-				slog.Group("error",
-					slog.String("message", err.Error()),
-					slog.String("field", StatsField),
-					slog.String("input", codesInput),
-				))
-			reply(failure)
-			return
-		}
-		if len(codes) == 0 {
-			reply(noPromo)
-			return
-		}
-		sb := formatter.FormatList(
-			reqEnv.Lang.Tr(listPromoCodesTitle),
-			reqEnv.Lang.Tr(listPromoCodesTotalEnding),
-			codes)
-
-		reply(sb)
-
+		h.processAndReplyPromoList(reqEnv, msg, codesInput, op)
 	} else {
 		statsForm := wizard.NewWizard(h, 1)
 		statsForm.AddEmptyField(StatsField, wizard.Text)
@@ -114,22 +88,21 @@ func (h *Stats) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 
 func (h *Stats) action(reqEnv *base.RequestEnv, msg *tgbotapi.Message, fields wizard.Fields) {
 	const op = "stats.action"
-	log := slog.With("op", op, "user_id", msg.From.ID)
+	codesInput := fields.FindField(StatsField).Data.(wizard.Txt).Value
+	h.processAndReplyPromoList(reqEnv, msg, codesInput, op)
+}
 
+func parseArguments(arg string) []string {
+	return strings.FieldsFunc(arg, func(r rune) bool {
+		return unicode.IsSpace(r) || r == ',' || r == ';'
+	})
+}
+
+func (h *Stats) processAndReplyPromoList(reqEnv *base.RequestEnv, msg *tgbotapi.Message, input string, op string) {
+	log := slog.With("op", op, "user_id", msg.From.ID)
 	reply := base.NewReplier(h.appEnv, reqEnv, msg)
 
-	codesInput := fields.FindField(StatsField).Data.(wizard.Txt).Value
-	if codesInput == "" {
-		log.Error("field not found",
-			slog.Group("error",
-				slog.String("message", "nil field"),
-				slog.String("field", StatsField),
-			))
-		reply(failure)
-		return
-	}
-
-	argSlice := ParseArguments(codesInput)
+	argSlice := parseArguments(input)
 	if len(argSlice) == 0 {
 		reply(invalidArgs)
 		return
@@ -141,9 +114,14 @@ func (h *Stats) action(reqEnv *base.RequestEnv, msg *tgbotapi.Message, fields wi
 			slog.Group("error",
 				slog.String("message", err.Error()),
 				slog.String("field", StatsField),
-				slog.String("input", codesInput),
+				slog.String("input", input),
 			))
 		reply(failure)
+		return
+	}
+
+	if len(codes) == 0 {
+		reply(noPromo)
 		return
 	}
 
@@ -153,10 +131,4 @@ func (h *Stats) action(reqEnv *base.RequestEnv, msg *tgbotapi.Message, fields wi
 		codes)
 
 	reply(list)
-}
-
-func ParseArguments(arg string) []string {
-	return strings.FieldsFunc(arg, func(r rune) bool {
-		return unicode.IsSpace(r) || r == ',' || r == ';'
-	})
 }
