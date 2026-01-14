@@ -187,7 +187,7 @@ func TestNewFileStorage(t *testing.T) {
 		require.NotNil(t, storage)
 
 		_, err = os.Stat(auditDir)
-		require.NoError(t, err)
+		require.NoError(t, err, "directory should be created")
 	})
 
 	t.Run("uses default directory when empty string", func(t *testing.T) {
