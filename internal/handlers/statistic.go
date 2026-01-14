@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	StatsField  = "stats"
+	CodesField  = "code"
 	failure     = "failure"
 	invalidArgs = "invalid"
 )
@@ -52,7 +52,7 @@ func (h *Stats) GetWizardEnv() *wizard.Env {
 
 func (h *Stats) GetWizardDescriptor() *wizard.FormDescriptor {
 	desc := wizard.NewWizardDescriptor(h.action)
-	desc.AddField(StatsField, promoFieldsTrPrefix+StatsField)
+	desc.AddField(CodesField, promoFieldsTrPrefix+CodesField)
 	return desc
 }
 
@@ -81,14 +81,14 @@ func (h *Stats) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 		h.processAndReplyPromoList(reqEnv, msg, codesInput, op)
 	} else {
 		statsForm := wizard.NewWizard(h, 1)
-		statsForm.AddEmptyField(StatsField, wizard.Text)
+		statsForm.AddEmptyField(CodesField, wizard.Text)
 		statsForm.ProcessNextField(reqEnv, msg)
 	}
 }
 
 func (h *Stats) action(reqEnv *base.RequestEnv, msg *tgbotapi.Message, fields wizard.Fields) {
 	const op = "stats.action"
-	codesInput := fields.FindField(StatsField).Data.(wizard.Txt).Value
+	codesInput := fields.FindField(CodesField).Data.(wizard.Txt).Value
 	h.processAndReplyPromoList(reqEnv, msg, codesInput, op)
 }
 
@@ -113,7 +113,7 @@ func (h *Stats) processAndReplyPromoList(reqEnv *base.RequestEnv, msg *tgbotapi.
 		log.Error("failed to get promo code",
 			slog.Group("error",
 				slog.String("message", err.Error()),
-				slog.String("field", StatsField),
+				slog.String("field", CodesField),
 				slog.String("input", input),
 			))
 		reply(failure)
