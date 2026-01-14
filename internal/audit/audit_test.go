@@ -12,7 +12,7 @@ func TestFileStorage_Save(t *testing.T) {
 	tests := []struct {
 		name         string
 		input        any
-		setupFunc    func(tmpDir string)
+		setupFunc    func(t *testing.T, tmpDir string)
 		wantErr      bool
 		validateFunc func(t *testing.T, tmpDir string)
 	}{
@@ -39,10 +39,12 @@ func TestFileStorage_Save(t *testing.T) {
 				"by":     "user",
 			},
 			wantErr: false,
-			setupFunc: func(tmpDir string) {
+			setupFunc: func(t *testing.T, tmpDir string) {
 				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
-				os.MkdirAll(filepath.Dir(logPath), 0755)
-				os.WriteFile(logPath, []byte("{\"code\":\"first\",\"action\":\"created\",\"by\":\"admin\"}\n"), 0644)
+				err := os.MkdirAll(filepath.Dir(logPath), 0755)
+				require.NoError(t, err)
+				err = os.WriteFile(logPath, []byte("{\"code\":\"first\",\"action\":\"created\",\"by\":\"admin\"}\n"), 0644)
+				require.NoError(t, err)
 			},
 			validateFunc: func(t *testing.T, tmpDir string) {
 				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
@@ -63,7 +65,7 @@ func TestFileStorage_Save(t *testing.T) {
 			validateFunc: func(t *testing.T, tmpDir string) {
 				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
 				_, err := os.Stat(filepath.Dir(logPath))
-				require.NoError(t, err, "directory should be created")
+				require.NoError(t, err)
 			},
 		},
 		{
@@ -85,15 +87,19 @@ func TestFileStorage_Save(t *testing.T) {
 				"by":     "test",
 			},
 			wantErr: true,
-			setupFunc: func(tmpDir string) {
+			setupFunc: func(t *testing.T, tmpDir string) {
 				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
-				os.MkdirAll(filepath.Dir(logPath), 0755)
-				os.WriteFile(logPath, []byte("{\"existing\":\"data\"}\n"), 0644)
-				os.Chmod(logPath, 0444) // readonly file
+				err := os.MkdirAll(filepath.Dir(logPath), 0755)
+				require.NoError(t, err)
+				err = os.WriteFile(logPath, []byte("{\"existing\":\"data\"}\n"), 0644)
+				require.NoError(t, err)
+				err = os.Chmod(logPath, 0444)
+				require.NoError(t, err)
 			},
 			validateFunc: func(t *testing.T, tmpDir string) {
 				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
-				os.Chmod(logPath, 0644)
+				err := os.Chmod(logPath, 0644)
+				require.NoError(t, err)
 			},
 		},
 		{
@@ -149,15 +155,13 @@ func TestFileStorage_Save(t *testing.T) {
 			tmpDir := t.TempDir()
 
 			if tt.setupFunc != nil {
-				tt.setupFunc(tmpDir)
+				tt.setupFunc(t, tmpDir)
 			}
 
-			// Create storage with temp directory
 			auditDir := filepath.Join(tmpDir, "audit-logs")
 			storage, err := NewFileStorage(auditDir)
 			require.NoError(t, err)
 
-			// Call Save
 			err = storage.Save(tt.input)
 
 			if tt.wantErr {
@@ -183,14 +187,21 @@ func TestNewFileStorage(t *testing.T) {
 		require.NotNil(t, storage)
 
 		_, err = os.Stat(auditDir)
-		require.NoError(t, err, "directory should be created")
+		require.NoError(t, err)
 	})
 
 	t.Run("uses default directory when empty string", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		originalWd, _ := os.Getwd()
-		defer os.Chdir(originalWd)
-		os.Chdir(tmpDir)
+		originalWd, err := os.Getwd()
+		require.NoError(t, err)
+
+		defer func() {
+			err := os.Chdir(originalWd)
+			require.NoError(t, err)
+		}()
+
+		err = os.Chdir(tmpDir)
+		require.NoError(t, err)
 
 		storage, err := NewFileStorage("")
 		require.NoError(t, err)
@@ -201,7 +212,6 @@ func TestNewFileStorage(t *testing.T) {
 	})
 
 	t.Run("fails when cannot create directory", func(t *testing.T) {
-		// Try to create directory in non-existent path with no permissions
 		storage, err := NewFileStorage("/root/forbidden/audit-logs")
 		require.Error(t, err)
 		require.Nil(t, storage)
