@@ -2,7 +2,8 @@ package config
 
 // UserOptions is the actual type for [github.com/kozalosev/goSadTgBot/settings.UserOptions] in this application.
 type UserOptions struct {
-	Role UserRole
+	Role     UserRole
+	UserName UserName
 }
 
 // UserRole determines the permissions granted to a user.

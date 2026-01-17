@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strconv"
 
+	"github.com/MikebangSfilya/promoBot/internal/audit"
 	"github.com/MikebangSfilya/promoBot/internal/config"
 	"github.com/MikebangSfilya/promoBot/internal/db/repo"
 	"github.com/MikebangSfilya/promoBot/internal/handlers/common"
@@ -43,14 +44,16 @@ type PromoHandler struct {
 
 	appEnv       *base.ApplicationEnv
 	stateStorage wizard.StateStorage
+	auditStorage audit.Storage
 
 	PromoService *repo.Promo
 }
 
-func NewPromoHandler(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage) *PromoHandler {
+func NewPromoHandler(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage, storage audit.Storage) *PromoHandler {
 	h := &PromoHandler{
 		appEnv:       appEnv,
 		stateStorage: stateStorage,
+		auditStorage: storage,
 		PromoService: repo.NewPromo(appEnv),
 	}
 	h.HandlerRefForTrait = h
@@ -86,9 +89,9 @@ func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 	reply := base.NewReplier(h.appEnv, reqEnv, msg)
 	opts, ok := reqEnv.Options.(config.UserOptions)
 	if !ok {
-		log.Error("failed to create a promo code",
+		log.Error("failed to cast Options to UserOptions",
 			slog.Group("error",
-				"message", "type assertion failed"))
+				slog.String("message", "type assertion failed")))
 		reply("failure")
 		return
 	}
@@ -113,6 +116,15 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 	log := slog.With("op", op, "user_id", msg.From.ID)
 
 	reply := base.NewReplier(h.appEnv, reqenv, msg)
+
+	opts, ok := reqenv.Options.(config.UserOptions)
+	if !ok {
+		log.Error("failed to get user options",
+			slog.Group("error",
+				"message", "type assertion failed"))
+		reply(errToCreatePromo)
+		return
+	}
 
 	promoCode := extractPromoInfo(fields, fieldPromo)
 	confirmAct := extractPromoInfo(fields, fieldConfirmation)
@@ -161,6 +173,20 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 			reply(errToCreatePromo)
 			return
 		}
+
+		auditLog := audit.Log{
+			Code:   promoCode,
+			Action: "create",
+			By:     string(opts.UserName),
+		}
+
+		if err := h.auditStorage.Save(auditLog); err != nil {
+			slog.Error("failed to save audit log",
+				slog.Group("error",
+					slog.String("message", err.Error()),
+					slog.String("component", "auditStorage.Save")))
+		}
+
 		message := fmt.Sprintf(
 			reqenv.Lang.Tr(fullMsg),
 			promoCode,
@@ -174,6 +200,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 	default:
 		reply(UnknowCommand)
 	}
+
 }
 
 func extractPromoInfo(fields wizard.Fields, field string) string {

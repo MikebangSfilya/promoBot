@@ -39,5 +39,5 @@ func (u *UsersConfig) FetchUserOptions(uid int64, defaultLang string) (settings.
 	if !found {
 		return settings.LangCode(defaultLang), UserOptions{}
 	}
-	return settings.LangCode(user.Language), UserOptions{Role: user.Role}
+	return settings.LangCode(user.Language), UserOptions{Role: user.Role, UserName: user.Name}
 }

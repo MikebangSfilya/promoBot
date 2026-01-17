@@ -9,15 +9,15 @@ DB_URL=postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTG
 
 .PHONY: migrate-up migrate-down migrate-force migrate-create migrate-version
 migrate-up:
-	migrate -path ./migrations -database "$(DB_URL)" up
+	migrate -path ./db/migrations -database "$(DB_URL)" up
 migrate-down:
-	migrate -path ./migrations -database "$(DB_URL)" down 1
+	migrate -path ./db/migrations -database "$(DB_URL)" down 1
 migrate-force:
 ifeq ($(strip $(NAME)),)
 	@echo Usage: make migrate-force VERSION=...
 	@exit 1
 endif
-	migrate -path ./migrations -database "$(DB_URL)" force $(VERSION)
+	migrate -path ./db/migrations -database "$(DB_URL)" force $(VERSION)
 migrate-create:
 ifeq ($(strip $(NAME)),)
 	@echo Usage: make migrate-create NAME=...
@@ -25,7 +25,7 @@ ifeq ($(strip $(NAME)),)
 endif
 	migrate create -ext sql -dir migrations -seq $(NAME)
 migrate-version:
-	migrate -path ./migrations -database "$(DB_URL)" version
+	migrate -path ./db/migrations -database "$(DB_URL)" version
 
 
 # Local Development
