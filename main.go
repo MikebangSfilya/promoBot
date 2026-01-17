@@ -184,10 +184,18 @@ func establishConnections(ctx context.Context) (stateStorage wizard.StateStorage
 	return
 }
 
-func initHandlers(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage, auditStorage audit.Storage) (messageHandlers []base.MessageHandler, callbackHandlers []base.CallbackHandler) {
+func initHandlers(
+	appEnv *base.ApplicationEnv,
+	stateStorage wizard.StateStorage,
+	auditStorage audit.Storage) (
+	messageHandlers []base.MessageHandler,
+	callbackHandlers []base.CallbackHandler) {
+
+	promo := handlers.NewPromoHandler(appEnv, stateStorage, auditStorage)
 	messageHandlers = []base.MessageHandler{
 		handlers.NewGetHandler(appEnv),
-		handlers.NewPromoHandler(appEnv, stateStorage, auditStorage),
+		promo,
+		handlers.NewStats(promo),
 	}
 	callbackHandlers = []base.CallbackHandler{
 		// handlers.NewRevokeCallbackHandler(appEnv),

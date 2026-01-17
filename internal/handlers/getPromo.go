@@ -1,20 +1,18 @@
 package handlers
 
 import (
-	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/MikebangSfilya/promoBot/internal/config"
 	"github.com/MikebangSfilya/promoBot/internal/db/repo"
 	"github.com/MikebangSfilya/promoBot/internal/handlers/common"
+	"github.com/MikebangSfilya/promoBot/internal/handlers/formatter"
 	tgbotapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/kozalosev/goSadTgBot/base"
 )
 
-var noPromo = "noPromo"
-
 const (
+	noPromo                   = "noPromo"
 	listPromoCodesTitle       = "listPromoCodesTitle"
 	listPromoCodesTotalEnding = "listPromoCodesTotalEnding"
 )
@@ -75,19 +73,9 @@ func (h *GetHandle) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 		return
 	}
 
-	sb := strings.Builder{}
-	sb.WriteString(reqEnv.Lang.Tr(listPromoCodesTitle))
-	sb.WriteString(": \n\n")
-
-	for i, promo := range promoCodes {
-		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, promo.String()))
-	}
-
-	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf(
+	sb := formatter.FormatList(
+		reqEnv.Lang.Tr(listPromoCodesTitle),
 		reqEnv.Lang.Tr(listPromoCodesTotalEnding),
-		len(promoCodes),
-	))
-
-	reply(sb.String())
+		promoCodes)
+	reply(sb)
 }

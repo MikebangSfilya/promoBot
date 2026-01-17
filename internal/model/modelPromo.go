@@ -33,6 +33,19 @@ func (rc ResponseCode) String() string {
 		rc.Code, rc.BonusLength, rc.Capacity)
 }
 
+type StatResponseCode struct {
+	Code            string
+	Activations     int
+	InitialCapacity int
+	BonusLength     int
+	Capacity        int
+}
+
+func (rc StatResponseCode) String() string {
+	return fmt.Sprintf("Промокод: %s — %d см. Осталось использований: %d, (Изначальное кол-во использований: %d, активаций: %d)",
+		rc.Code, rc.BonusLength, rc.Capacity, rc.InitialCapacity, rc.Activations)
+}
+
 func NewPromo(code string, bonusLen, capacity int, until *time.Time) (PromoCode, error) {
 	trimCode := strings.TrimSpace(code)
 	if trimCode == "" {
