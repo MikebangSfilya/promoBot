@@ -112,7 +112,7 @@ func (p *Promo) GetPromoCode(codes []string) ([]model.StatResponseCode, error) {
 		FROM promo_codes
 		JOIN promo_code_activations USING (code)
 		WHERE code = any($1)
-		GROUP BY code, bonus_length, capacity;;
+		GROUP BY code, bonus_length, capacity;
 	`
 	rows, err := p.appEnv.Database.Query(p.appEnv.Ctx, query, codes)
 	if err != nil {
