@@ -177,7 +177,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 		}
 		defer tx.Rollback(ctxTr)
 
-		err = h.PromoService.CreatePromo(tx, modelToRepo)
+		err = h.PromoService.CreatePromo(ctxTr, tx, modelToRepo)
 		if err != nil {
 			log.Error("failed to create promo code",
 				slog.Group("error",
@@ -199,7 +199,6 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 				slog.Group("error",
 					slog.String("message", err.Error()),
 					slog.String("component", "auditStorage.Save")))
-			tx.Rollback(ctxTr)
 			reply(errToCreatePromo)
 			return
 		}

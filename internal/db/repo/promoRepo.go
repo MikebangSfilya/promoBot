@@ -23,7 +23,7 @@ func NewPromo(appEnv *base.ApplicationEnv) *Promo {
 	return &Promo{appEnv: appEnv}
 }
 
-func (p *Promo) CreatePromo(tx Execer, promoCode models.PromoCode) error {
+func (p *Promo) CreatePromo(ctx context.Context, tx Execer, promoCode models.PromoCode) error {
 	const op = "Promo.CreatePromo"
 	log := slog.With("op", op)
 
@@ -34,7 +34,7 @@ func (p *Promo) CreatePromo(tx Execer, promoCode models.PromoCode) error {
 		`
 
 	_, err := tx.Exec(
-		p.appEnv.Ctx,
+		ctx,
 		query,
 		promoCode.Code,
 		promoCode.BonusLength,
