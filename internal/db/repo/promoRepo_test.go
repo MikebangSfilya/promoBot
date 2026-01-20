@@ -99,7 +99,7 @@ func TestPromo_CreatePromo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := repo.CreatePromo(tt.promo)
+			err := repo.CreatePromo(pool, tt.promo)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -154,7 +154,7 @@ func TestPromo_GetTable(t *testing.T) {
 
 	// Создаем промокоды через репозиторий
 	for _, promo := range testPromos {
-		err := repo.CreatePromo(promo)
+		err := repo.CreatePromo(pool, promo)
 		require.NoError(t, err)
 	}
 
@@ -225,10 +225,53 @@ func TestPromo_CreatePromo_Duplicate(t *testing.T) {
 	}
 
 	// Создаем первый промокод
-	err := repo.CreatePromo(promo)
+	err := repo.CreatePromo(pool, promo)
 	require.NoError(t, err)
 
 	// Пытаемся создать дубликат
-	err = repo.CreatePromo(promo)
+	err = repo.CreatePromo(pool, promo)
 	assert.Error(t, err) // Должна быть ошибка из-за PRIMARY KEY
+}
+
+func TestPromo_CreatePromo_InTransaction(t *testing.T) {
+	pool, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	appEnv := &base.ApplicationEnv{
+		Database: pool,
+		Ctx:      ctx,
+	}
+	repo := NewPromo(appEnv)
+
+	promo := model.PromoCode{
+		Code:        "TX_PROMO",
+		BonusLength: 10,
+		Since:       time.Now(),
+		Capacity:    5,
+	}
+
+	tx, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	defer tx.Rollback(ctx)
+
+	err = repo.CreatePromo(tx, promo)
+	require.NoError(t, err)
+
+	var count int
+	err = tx.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Codes WHERE code = $1", promo.Code).Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	var countOutside int
+	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Codes WHERE code = $1", promo.Code).Scan(&countOutside)
+	require.NoError(t, err)
+	assert.Equal(t, 0, countOutside)
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+
+	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Codes WHERE code = $1", promo.Code).Scan(&countOutside)
+	require.NoError(t, err)
+	assert.Equal(t, 1, countOutside)
 }
