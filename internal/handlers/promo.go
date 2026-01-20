@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/MikebangSfilya/promoBot/internal/audit"
 	"github.com/MikebangSfilya/promoBot/internal/config"
@@ -163,7 +165,19 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 
 	switch confirmAct {
 	case actionCreate:
-		err := h.PromoService.CreatePromo(modelToRepo)
+
+		ctxTr, cancel := context.WithTimeout(h.appEnv.Ctx, 5*time.Second)
+		defer cancel()
+		tx, err := h.appEnv.Database.Begin(ctxTr)
+		if err != nil {
+			log.Error("failed to begin transaction", slog.Group("error",
+				"message", err.Error()))
+			reply("failure")
+			return
+		}
+		defer tx.Rollback(ctxTr)
+
+		err = h.PromoService.CreatePromo(tx, modelToRepo)
 		if err != nil {
 			log.Error("failed to create promo code",
 				slog.Group("error",
@@ -185,6 +199,18 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 				slog.Group("error",
 					slog.String("message", err.Error()),
 					slog.String("component", "auditStorage.Save")))
+			tx.Rollback(ctxTr)
+			reply(errToCreatePromo)
+			return
+		}
+
+		if err := tx.Commit(ctxTr); err != nil {
+			log.Error("failed to commit transaction",
+				slog.Group("error",
+					"message", err.Error(),
+					"component", "Tx.Commit"))
+			reply(errToCreatePromo)
+			return
 		}
 
 		message := fmt.Sprintf(
