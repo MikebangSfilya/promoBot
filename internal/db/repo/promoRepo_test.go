@@ -36,16 +36,17 @@ func setupTestDB(t *testing.T) (*pgxpool.Pool, func()) {
 	pool, err := pgxpool.New(ctx, connStr)
 	require.NoError(t, err)
 
-	// Применяем миграции
+	// Apply migrations
+	// Note: indentation inside the string below is manually aligned to tabs
 	_, err = pool.Exec(ctx, `
-       CREATE TABLE IF NOT EXISTS Promo_Codes (
-          code varchar(16) PRIMARY KEY,
-          bonus_length integer NOT NULL,
-          since date NOT NULL DEFAULT current_date,
-          until date,
-          capacity integer NOT NULL CHECK ( capacity >= 0 )
-       );
-    `)
+		CREATE TABLE IF NOT EXISTS Promo_Codes (
+			code varchar(16) PRIMARY KEY,
+			bonus_length integer NOT NULL,
+			since date NOT NULL DEFAULT current_date,
+			until date,
+			capacity integer NOT NULL CHECK ( capacity >= 0 )
+		);
+	`)
 	require.NoError(t, err)
 
 	cleanup := func() {
@@ -105,7 +106,7 @@ func TestPromo_CreatePromo(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 
-				// Проверяем, что промокод действительно создан
+				// Verify that the promo code was actually created
 				var count int
 				err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Codes WHERE code = $1", tt.promo.Code).Scan(&count)
 				require.NoError(t, err)
@@ -127,7 +128,7 @@ func TestPromo_GetTable(t *testing.T) {
 
 	repo := NewPromo(appEnv)
 
-	// Создаем тестовые данные
+	// Create test data
 	testPromos := []model.PromoCode{
 		{
 			Code:        "PROMO1",
@@ -152,25 +153,25 @@ func TestPromo_GetTable(t *testing.T) {
 		},
 	}
 
-	// Создаем промокоды через репозиторий
+	// Create promo codes via repository
 	for _, promo := range testPromos {
 		err := repo.CreatePromo(ctx, pool, promo)
 		require.NoError(t, err)
 	}
 
-	// Получаем таблицу
+	// Retrieve the table
 	result, err := repo.GetTable()
 	require.NoError(t, err)
 
-	// Проверяем, что получили все промокоды
+	// Verify that we received all promo codes
 	assert.Len(t, result, 3)
 
-	// Проверяем сортировку по capacity (должна быть по возрастанию)
+	// Check sorting by capacity (should be ascending)
 	assert.Equal(t, "PROMO2", result[0].Code) // capacity = 5
 	assert.Equal(t, "PROMO1", result[1].Code) // capacity = 10
 	assert.Equal(t, "PROMO3", result[2].Code) // capacity = 15
 
-	// Проверяем данные
+	// Verify data
 	assert.Equal(t, "PROMO2", result[0].Code)
 	assert.Equal(t, 15, result[0].BonusLength)
 	assert.Equal(t, 5, result[0].Capacity)
@@ -196,7 +197,7 @@ func TestPromo_GetTable_Empty(t *testing.T) {
 
 	repo := NewPromo(appEnv)
 
-	// Получаем таблицу из пустой БД
+	// Get table from empty DB
 	result, err := repo.GetTable()
 	require.NoError(t, err)
 	assert.Empty(t, result)
@@ -222,13 +223,13 @@ func TestPromo_CreatePromo_Duplicate(t *testing.T) {
 		Capacity:    5,
 	}
 
-	// Создаем первый промокод
+	// Create the first promo code
 	err := repo.CreatePromo(ctx, pool, promo)
 	require.NoError(t, err)
 
-	// Пытаемся создать дубликат
+	// Try to create a duplicate
 	err = repo.CreatePromo(ctx, pool, promo)
-	assert.Error(t, err) // Должна быть ошибка из-за PRIMARY KEY
+	assert.Error(t, err) // Expect an error due to PRIMARY KEY violation
 }
 
 func TestPromo_CreatePromo_InTransaction(t *testing.T) {
