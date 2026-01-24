@@ -185,7 +185,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 				return fmt.Errorf("audit save: %w", err)
 			}
 
-			return nil // Успех -> Commit
+			return nil
 		})
 
 		if err != nil {
