@@ -6,8 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/MikebangSfilya/promoBot/internal/model"
-	models "github.com/MikebangSfilya/promoBot/internal/model"
-	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/kozalosev/goSadTgBot/base"
 )
 
@@ -15,15 +14,15 @@ type Promo struct {
 	appEnv *base.ApplicationEnv
 }
 
-type Execer interface {
-	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
-}
-
 func NewPromo(appEnv *base.ApplicationEnv) *Promo {
 	return &Promo{appEnv: appEnv}
 }
 
-func (p *Promo) CreatePromo(ctx context.Context, tx Execer, promoCode models.PromoCode) error {
+func (p *Promo) CreatePromo(ctx context.Context, db DBQuerier, promoCode model.PromoCode) error {
+	if db == nil {
+		db = p.appEnv.Database
+	}
+
 	const op = "Promo.CreatePromo"
 	log := slog.With("op", op)
 
@@ -33,7 +32,7 @@ func (p *Promo) CreatePromo(ctx context.Context, tx Execer, promoCode models.Pro
 		VALUES ($1, $2, $3, $4, $5)
 		`
 
-	_, err := tx.Exec(
+	_, err := db.Exec(
 		ctx,
 		query,
 		promoCode.Code,

@@ -49,14 +49,16 @@ type PromoHandler struct {
 	auditStorage audit.Storage
 
 	PromoService *repo.Promo
+	txManager    *repo.TxManager
 }
 
-func NewPromoHandler(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage, storage audit.Storage) *PromoHandler {
+func NewPromoHandler(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage, storage audit.Storage, txManager *repo.TxManager) *PromoHandler {
 	h := &PromoHandler{
 		appEnv:       appEnv,
 		stateStorage: stateStorage,
 		auditStorage: storage,
 		PromoService: repo.NewPromo(appEnv),
+		txManager:    txManager,
 	}
 	h.HandlerRefForTrait = h
 	return h
@@ -165,49 +167,32 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 
 	switch confirmAct {
 	case actionCreate:
+		err := h.txManager.WithinTransaction(h.appEnv.Ctx, func(ctx context.Context, q repo.DBQuerier) error {
+			ctxTr, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
 
-		ctxTr, cancel := context.WithTimeout(h.appEnv.Ctx, 5*time.Second)
-		defer cancel()
-		tx, err := h.appEnv.Database.Begin(ctxTr)
-		if err != nil {
-			log.Error("failed to begin transaction", slog.Group("error",
-				"message", err.Error()))
-			reply("failure")
-			return
-		}
-		defer tx.Rollback(ctxTr)
+			if err := h.PromoService.CreatePromo(ctxTr, q, modelToRepo); err != nil {
+				return fmt.Errorf("create promo: %w", err)
+			}
 
-		err = h.PromoService.CreatePromo(ctxTr, tx, modelToRepo)
+			auditLog := audit.Log{
+				Code:   promoCode,
+				Action: "create",
+				By:     string(opts.UserName),
+			}
+
+			if err := h.auditStorage.Save(auditLog); err != nil {
+				return fmt.Errorf("audit save: %w", err)
+			}
+
+			return nil // Успех -> Commit
+		})
+
 		if err != nil {
-			log.Error("failed to create promo code",
+			log.Error("failed to process promo creation transaction",
 				slog.Group("error",
 					"message", err.Error(),
-					"component", "PromoService.CreatePromo",
 					"promo_code", promoCode))
-			reply(errToCreatePromo)
-			return
-		}
-
-		auditLog := audit.Log{
-			Code:   promoCode,
-			Action: "create",
-			By:     string(opts.UserName),
-		}
-
-		if err := h.auditStorage.Save(auditLog); err != nil {
-			slog.Error("failed to save audit log",
-				slog.Group("error",
-					slog.String("message", err.Error()),
-					slog.String("component", "auditStorage.Save")))
-			reply(errToCreatePromo)
-			return
-		}
-
-		if err := tx.Commit(ctxTr); err != nil {
-			log.Error("failed to commit transaction",
-				slog.Group("error",
-					"message", err.Error(),
-					"component", "Tx.Commit"))
 			reply(errToCreatePromo)
 			return
 		}
@@ -225,7 +210,6 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 	default:
 		reply(UnknowCommand)
 	}
-
 }
 
 func extractPromoInfo(fields wizard.Fields, field string) string {
