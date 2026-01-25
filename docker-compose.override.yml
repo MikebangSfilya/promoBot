@@ -1,4 +1,7 @@
 services:
+  bot:
+    ports:
+      - "${APP_PORT}:${APP_PORT}"
   redis:
     ports:
       - "${REDIS_PORT}:${REDIS_PORT}"

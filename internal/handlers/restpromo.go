@@ -18,10 +18,10 @@ type OneTimePromoHandler struct {
 	appEnv *base.ApplicationEnv
 	promo  *repo.Promo
 	audit  audit.Storage
-	tx     repo.TxManager
+	tx     *repo.TxManager
 }
 
-func NewOneTimePromoHandler(appEnv *base.ApplicationEnv, repo *repo.Promo, audit audit.Storage, manager repo.TxManager) *OneTimePromoHandler {
+func NewOneTimePromoHandler(appEnv *base.ApplicationEnv, repo *repo.Promo, audit audit.Storage, manager *repo.TxManager) *OneTimePromoHandler {
 	return &OneTimePromoHandler{
 		appEnv: appEnv,
 		promo:  repo,
@@ -31,7 +31,6 @@ func NewOneTimePromoHandler(appEnv *base.ApplicationEnv, repo *repo.Promo, audit
 }
 
 func (h *OneTimePromoHandler) GeneratePromo() http.HandlerFunc {
-	//code, bonus_length, since, until, capacity
 	const op = "OneTimePromoHandler.GeneratePromo"
 	log := slog.With("op", op)
 	type CreateRequest struct {
@@ -41,6 +40,11 @@ func (h *OneTimePromoHandler) GeneratePromo() http.HandlerFunc {
 		Capacity    int        `json:"capacity"`
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
 		var req CreateRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -104,5 +108,6 @@ func (h *OneTimePromoHandler) GeneratePromo() http.HandlerFunc {
 			return
 		}
 		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "code": code.Code})
 	}
 }

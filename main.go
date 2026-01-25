@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 
@@ -39,7 +40,7 @@ func main() {
 	if DevLvl == "" {
 		DevLvl = "local"
 	}
-	log := InitLogger(DevLvl)
+	log := initLogger(DevLvl)
 	log.Info("starting up", "devLvl", DevLvl)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -50,6 +51,7 @@ func main() {
 	srv := server.Start(os.Getenv(cfg.EnvAppPort))
 
 	stateStorage, db := establishConnections(ctx)
+	txManager := repo.NewTxManager(db)
 
 	bot, err := tgbotapi.NewBotAPI(os.Getenv(cfg.EnvAPIToken))
 	if err != nil {
@@ -60,7 +62,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	api := base.NewBotAPI(bot)
+	botAPI := base.NewBotAPI(bot)
 
 	debugMode := os.Getenv(cfg.EnvDebug)
 	bot.Debug = strings.ToLower(debugMode) == "true" || debugMode == "1"
@@ -79,13 +81,14 @@ func main() {
 	}
 
 	appenv := &base.ApplicationEnv{
-		Bot:      api,
+		Bot:      botAPI,
 		Database: db,
 		Ctx:      ctx,
 	}
 
-	messageHandlers, callbackHandlers := initHandlers(appenv, stateStorage, auditStorage)
-	api.SetCommands(locpool, supportedLanguages, base.ConvertHandlersToCommands(messageHandlers))
+	http.Handle("/promo/generate", restApiStart(appenv, auditStorage, txManager))
+	messageHandlers, callbackHandlers := initHandlers(appenv, stateStorage, auditStorage, txManager)
+	botAPI.SetCommands(locpool, supportedLanguages, base.ConvertHandlersToCommands(messageHandlers))
 
 	usersConfigPath := os.Getenv(cfg.EnvUsersConfigFile)
 	usersConfig, err := cfg.NewUsersConfig(usersConfigPath)
@@ -104,7 +107,7 @@ func main() {
 		CallbackHandlers: callbackHandlers,
 		Settings:         usersConfig,
 		LangPool:         locpool,
-		API:              api,
+		API:              botAPI,
 		StateStorage:     stateStorage,
 		DB:               db,
 	}
@@ -188,12 +191,12 @@ func establishConnections(ctx context.Context) (stateStorage wizard.StateStorage
 func initHandlers(
 	appEnv *base.ApplicationEnv,
 	stateStorage wizard.StateStorage,
-	auditStorage audit.Storage) (
+	auditStorage audit.Storage,
+	tx *repo.TxManager) (
 	messageHandlers []base.MessageHandler,
 	callbackHandlers []base.CallbackHandler) {
 
-	txManager := repo.NewTxManager(appEnv.Database)
-	promo := handlers.NewPromoHandler(appEnv, stateStorage, auditStorage, txManager)
+	promo := handlers.NewPromoHandler(appEnv, stateStorage, auditStorage, tx)
 	messageHandlers = []base.MessageHandler{
 		handlers.NewGetHandler(appEnv),
 		promo,
@@ -216,7 +219,7 @@ func shutdown(stateStorage wizard.StateStorage, db *pgxpool.Pool) {
 	}
 }
 
-func GetLogLevel(env string) slog.Level {
+func getLogLevel(env string) slog.Level {
 	switch strings.ToLower(env) {
 	case "local":
 		return slog.LevelDebug
@@ -229,8 +232,8 @@ func GetLogLevel(env string) slog.Level {
 	}
 }
 
-func InitLogger(env string) *slog.Logger {
-	lvl := GetLogLevel(env)
+func initLogger(env string) *slog.Logger {
+	lvl := getLogLevel(env)
 	opts := &slog.HandlerOptions{
 		Level: lvl,
 	}
@@ -245,4 +248,12 @@ func InitLogger(env string) *slog.Logger {
 	slog.SetDefault(logger)
 
 	return logger
+}
+
+func restApiStart(appEnv *base.ApplicationEnv, audit audit.Storage, manager *repo.TxManager) http.Handler {
+	//appEnv *base.ApplicationEnv, repo *repo.Promo, audit audit.Storage, manager repo.TxManager
+	promoRepo := repo.NewPromo(appEnv)
+	restHandler := handlers.NewOneTimePromoHandler(appEnv, promoRepo, audit, manager)
+
+	return restHandler.GeneratePromo()
 }
