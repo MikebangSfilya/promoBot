@@ -36,7 +36,8 @@ func setupTestDB(t *testing.T) (*pgxpool.Pool, func()) {
 	pool, err := pgxpool.New(ctx, connStr)
 	require.NoError(t, err)
 
-	// Применяем миграции
+	// Apply migrations
+	// Note: indentation inside the string below is manually aligned to tabs
 	_, err = pool.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS Promo_Codes (
 			code varchar(16) PRIMARY KEY,
@@ -99,13 +100,13 @@ func TestPromo_CreatePromo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := repo.CreatePromo(tt.promo)
+			err := repo.CreatePromo(ctx, pool, tt.promo)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 
-				// Проверяем, что промокод действительно создан
+				// Verify that the promo code was actually created
 				var count int
 				err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Codes WHERE code = $1", tt.promo.Code).Scan(&count)
 				require.NoError(t, err)
@@ -127,7 +128,7 @@ func TestPromo_GetTable(t *testing.T) {
 
 	repo := NewPromo(appEnv)
 
-	// Создаем тестовые данные
+	// Create test data
 	testPromos := []model.PromoCode{
 		{
 			Code:        "PROMO1",
@@ -152,35 +153,33 @@ func TestPromo_GetTable(t *testing.T) {
 		},
 	}
 
-	// Создаем промокоды через репозиторий
+	// Create promo codes via repository
 	for _, promo := range testPromos {
-		err := repo.CreatePromo(promo)
+		err := repo.CreatePromo(ctx, pool, promo)
 		require.NoError(t, err)
 	}
 
-	// Получаем таблицу
+	// Retrieve the table
 	result, err := repo.GetTable()
 	require.NoError(t, err)
 
-	// Проверяем, что получили все промокоды
+	// Verify that we received all promo codes
 	assert.Len(t, result, 3)
 
-	// Проверяем сортировку по capacity (должна быть по возрастанию)
+	// Check sorting by capacity (should be ascending)
 	assert.Equal(t, "PROMO2", result[0].Code) // capacity = 5
 	assert.Equal(t, "PROMO1", result[1].Code) // capacity = 10
 	assert.Equal(t, "PROMO3", result[2].Code) // capacity = 15
 
-	// Проверяем данные первого промокода
+	// Verify data
 	assert.Equal(t, "PROMO2", result[0].Code)
 	assert.Equal(t, 15, result[0].BonusLength)
 	assert.Equal(t, 5, result[0].Capacity)
 
-	// Проверяем данные второго промокода
 	assert.Equal(t, "PROMO1", result[1].Code)
 	assert.Equal(t, 5, result[1].BonusLength)
 	assert.Equal(t, 10, result[1].Capacity)
 
-	// Проверяем данные третьего промокода
 	assert.Equal(t, "PROMO3", result[2].Code)
 	assert.Equal(t, 20, result[2].BonusLength)
 	assert.Equal(t, 15, result[2].Capacity)
@@ -198,7 +197,7 @@ func TestPromo_GetTable_Empty(t *testing.T) {
 
 	repo := NewPromo(appEnv)
 
-	// Получаем таблицу из пустой БД
+	// Get table from empty DB
 	result, err := repo.GetTable()
 	require.NoError(t, err)
 	assert.Empty(t, result)
@@ -224,11 +223,54 @@ func TestPromo_CreatePromo_Duplicate(t *testing.T) {
 		Capacity:    5,
 	}
 
-	// Создаем первый промокод
-	err := repo.CreatePromo(promo)
+	// Create the first promo code
+	err := repo.CreatePromo(ctx, pool, promo)
 	require.NoError(t, err)
 
-	// Пытаемся создать дубликат
-	err = repo.CreatePromo(promo)
-	assert.Error(t, err) // Должна быть ошибка из-за PRIMARY KEY
+	// Try to create a duplicate
+	err = repo.CreatePromo(ctx, pool, promo)
+	assert.Error(t, err) // Expect an error due to PRIMARY KEY violation
+}
+
+func TestPromo_CreatePromo_InTransaction(t *testing.T) {
+	pool, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	appEnv := &base.ApplicationEnv{
+		Database: pool,
+		Ctx:      ctx,
+	}
+	repo := NewPromo(appEnv)
+
+	promo := model.PromoCode{
+		Code:        "TX_PROMO",
+		BonusLength: 10,
+		Since:       time.Now(),
+		Capacity:    5,
+	}
+
+	tx, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	defer tx.Rollback(ctx)
+
+	err = repo.CreatePromo(ctx, tx, promo)
+	require.NoError(t, err)
+
+	var count int
+	err = tx.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Codes WHERE code = $1", promo.Code).Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	var countOutside int
+	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Codes WHERE code = $1", promo.Code).Scan(&countOutside)
+	require.NoError(t, err)
+	assert.Equal(t, 0, countOutside)
+
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+
+	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Codes WHERE code = $1", promo.Code).Scan(&countOutside)
+	require.NoError(t, err)
+	assert.Equal(t, 1, countOutside)
 }

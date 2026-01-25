@@ -1,11 +1,12 @@
 package repo
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
 	"github.com/MikebangSfilya/promoBot/internal/model"
-	models "github.com/MikebangSfilya/promoBot/internal/model"
+
 	"github.com/kozalosev/goSadTgBot/base"
 )
 
@@ -17,7 +18,11 @@ func NewPromo(appEnv *base.ApplicationEnv) *Promo {
 	return &Promo{appEnv: appEnv}
 }
 
-func (p *Promo) CreatePromo(promoCode models.PromoCode) error {
+func (p *Promo) CreatePromo(ctx context.Context, db DBQuerier, promoCode model.PromoCode) error {
+	if db == nil {
+		db = p.appEnv.Database
+	}
+
 	const op = "Promo.CreatePromo"
 	log := slog.With("op", op)
 
@@ -27,8 +32,8 @@ func (p *Promo) CreatePromo(promoCode models.PromoCode) error {
 		VALUES ($1, $2, $3, $4, $5)
 		`
 
-	_, err := p.appEnv.Database.Exec(
-		p.appEnv.Ctx,
+	_, err := db.Exec(
+		ctx,
 		query,
 		promoCode.Code,
 		promoCode.BonusLength,

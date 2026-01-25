@@ -8,6 +8,7 @@ import (
 
 	"github.com/MikebangSfilya/promoBot/internal/audit"
 	cfg "github.com/MikebangSfilya/promoBot/internal/config"
+	"github.com/MikebangSfilya/promoBot/internal/db/repo"
 
 	"strings"
 	"sync"
@@ -191,7 +192,8 @@ func initHandlers(
 	messageHandlers []base.MessageHandler,
 	callbackHandlers []base.CallbackHandler) {
 
-	promo := handlers.NewPromoHandler(appEnv, stateStorage, auditStorage)
+	txManager := repo.NewTxManager(appEnv.Database)
+	promo := handlers.NewPromoHandler(appEnv, stateStorage, auditStorage, txManager)
 	messageHandlers = []base.MessageHandler{
 		handlers.NewGetHandler(appEnv),
 		promo,
