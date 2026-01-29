@@ -1,14 +1,16 @@
 package handlers
 
 import (
+	"context"
 	"log/slog"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/MikebangSfilya/promoBot/internal/config"
-	"github.com/MikebangSfilya/promoBot/internal/db/repo"
+	"github.com/MikebangSfilya/promoBot/internal/formatter"
 	"github.com/MikebangSfilya/promoBot/internal/handlers/common"
-	"github.com/MikebangSfilya/promoBot/internal/handlers/formatter"
+	"github.com/MikebangSfilya/promoBot/internal/model"
 	tgbotapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/kozalosev/goSadTgBot/base"
 	"github.com/kozalosev/goSadTgBot/wizard"
@@ -20,23 +22,25 @@ const (
 	invalidArgs = "invalid"
 )
 
+type StatsGetter interface {
+	GetStats(ctx context.Context, codes []string) ([]model.StatResponseCode, error)
+}
+
 type Stats struct {
 	base.CommandHandlerTrait
 	common.PrivateCommandTrait
 
 	appEnv       *base.ApplicationEnv
 	stateStorage wizard.StateStorage
-	PromoHandler *PromoHandler
 
-	PromoService *repo.Promo
+	PromoService StatsGetter
 }
 
-func NewStats(handler *PromoHandler) *Stats {
+func NewStats(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage, service StatsGetter) *Stats {
 	h := &Stats{
-		appEnv:       handler.appEnv,
-		stateStorage: handler.stateStorage,
-		PromoService: handler.PromoService,
-		PromoHandler: handler,
+		appEnv:       appEnv,
+		stateStorage: stateStorage,
+		PromoService: service,
 	}
 	h.HandlerRefForTrait = h
 	return h
@@ -108,7 +112,10 @@ func (h *Stats) processAndReplyPromoList(reqEnv *base.RequestEnv, msg *tgbotapi.
 		return
 	}
 
-	codes, err := h.PromoService.GetPromoCode(argSlice)
+	ctx, cancel := context.WithTimeout(h.appEnv.Ctx, 10*time.Second)
+	defer cancel()
+
+	codes, err := h.PromoService.GetStats(ctx, argSlice)
 	if err != nil {
 		log.Error("failed to get promo code",
 			slog.Group("error",

@@ -100,7 +100,7 @@ func TestPromo_CreatePromo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := repo.CreatePromo(ctx, pool, tt.promo)
+			err := repo.CreatePromo(ctx, tt.promo)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -155,12 +155,12 @@ func TestPromo_GetTable(t *testing.T) {
 
 	// Create promo codes via repository
 	for _, promo := range testPromos {
-		err := repo.CreatePromo(ctx, pool, promo)
+		err := repo.CreatePromo(ctx, promo)
 		require.NoError(t, err)
 	}
 
 	// Retrieve the table
-	result, err := repo.GetTable()
+	result, err := repo.GetTable(ctx)
 	require.NoError(t, err)
 
 	// Verify that we received all promo codes
@@ -198,7 +198,7 @@ func TestPromo_GetTable_Empty(t *testing.T) {
 	repo := NewPromo(appEnv)
 
 	// Get table from empty DB
-	result, err := repo.GetTable()
+	result, err := repo.GetTable(ctx)
 	require.NoError(t, err)
 	assert.Empty(t, result)
 }
@@ -224,11 +224,11 @@ func TestPromo_CreatePromo_Duplicate(t *testing.T) {
 	}
 
 	// Create the first promo code
-	err := repo.CreatePromo(ctx, pool, promo)
+	err := repo.CreatePromo(ctx, promo)
 	require.NoError(t, err)
 
 	// Try to create a duplicate
-	err = repo.CreatePromo(ctx, pool, promo)
+	err = repo.CreatePromo(ctx, promo)
 	assert.Error(t, err) // Expect an error due to PRIMARY KEY violation
 }
 
@@ -254,23 +254,29 @@ func TestPromo_CreatePromo_InTransaction(t *testing.T) {
 	require.NoError(t, err)
 	defer tx.Rollback(ctx)
 
-	err = repo.CreatePromo(ctx, tx, promo)
+	ctxWithTx := context.WithValue(ctx, TxKey{}, tx)
+
+	err = repo.CreatePromo(ctxWithTx, promo)
 	require.NoError(t, err)
 
+	// Verify INSIDE transaction (should be visible)
 	var count int
 	err = tx.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Codes WHERE code = $1", promo.Code).Scan(&count)
 	require.NoError(t, err)
-	assert.Equal(t, 1, count)
+	assert.Equal(t, 1, count, "Row should be visible inside transaction")
 
+	// Verify OUTSIDE transaction (should NOT be visible before commit)
 	var countOutside int
 	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Codes WHERE code = $1", promo.Code).Scan(&countOutside)
 	require.NoError(t, err)
-	assert.Equal(t, 0, countOutside)
+	assert.Equal(t, 0, countOutside, "Row should not be visible outside transaction before commit")
 
+	// Commit transaction
 	err = tx.Commit(ctx)
 	require.NoError(t, err)
 
+	// Verify OUTSIDE transaction after commit (should be visible)
 	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Codes WHERE code = $1", promo.Code).Scan(&countOutside)
 	require.NoError(t, err)
-	assert.Equal(t, 1, countOutside)
+	assert.Equal(t, 1, countOutside, "Row should be visible after commit")
 }

@@ -8,15 +8,11 @@ import (
 	"path/filepath"
 )
 
-type Storage interface {
-	Save(s any) error
-}
-
-type fileStorage struct {
+type FileStorage struct {
 	filePath string
 }
 
-func NewFileStorage(auditDir string) (Storage, error) {
+func NewFileStorage(auditDir string) (*FileStorage, error) {
 	const op = "audit.NewFileStorage"
 	log := slog.With("op", op)
 
@@ -35,10 +31,10 @@ func NewFileStorage(auditDir string) (Storage, error) {
 	log.Info("audit file location determined",
 		slog.String("path", absPath))
 
-	return fileStorage{filePath: absPath}, nil
+	return &FileStorage{filePath: absPath}, nil
 }
 
-func (fs fileStorage) Save(s any) error {
+func (fs FileStorage) Save(s any) error {
 	const op = "audit.Save"
 
 	file, err := os.OpenFile(fs.filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)

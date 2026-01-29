@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
-	"time"
 
 	"github.com/MikebangSfilya/promoBot/internal/audit"
 	"github.com/MikebangSfilya/promoBot/internal/config"
-	"github.com/MikebangSfilya/promoBot/internal/db/repo"
 	"github.com/MikebangSfilya/promoBot/internal/handlers/common"
 	"github.com/MikebangSfilya/promoBot/internal/model"
 
@@ -40,25 +38,25 @@ const (
 	errNoPermission  = "errNoPermission"
 )
 
+type SaveService interface {
+	CreatePromoWithAudit(ctx context.Context, modelToRepo model.PromoCode, auditLog audit.Log) error
+}
+
 type PromoHandler struct {
 	base.CommandHandlerTrait
 	common.PrivateCommandTrait
 
 	appEnv       *base.ApplicationEnv
 	stateStorage wizard.StateStorage
-	auditStorage audit.Storage
 
-	PromoService *repo.Promo
-	txManager    *repo.TxManager
+	saveService SaveService
 }
 
-func NewPromoHandler(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage, storage audit.Storage, txManager *repo.TxManager) *PromoHandler {
+func NewPromoHandler(appEnv *base.ApplicationEnv, stateStorage wizard.StateStorage, service SaveService) *PromoHandler {
 	h := &PromoHandler{
 		appEnv:       appEnv,
 		stateStorage: stateStorage,
-		auditStorage: storage,
-		PromoService: repo.NewPromo(appEnv),
-		txManager:    txManager,
+		saveService:  service,
 	}
 	h.HandlerRefForTrait = h
 	return h
@@ -167,26 +165,12 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 
 	switch confirmAct {
 	case actionCreate:
-		err := h.txManager.WithinTransaction(h.appEnv.Ctx, func(ctx context.Context, q repo.DBQuerier) error {
-			ctxTr, cancel := context.WithTimeout(ctx, 5*time.Second)
-			defer cancel()
-
-			if err := h.PromoService.CreatePromo(ctxTr, q, modelToRepo); err != nil {
-				return fmt.Errorf("create promo: %w", err)
-			}
-
-			auditLog := audit.Log{
-				Code:   promoCode,
-				Action: "create",
-				By:     string(opts.UserName),
-			}
-
-			if err := h.auditStorage.Save(auditLog); err != nil {
-				return fmt.Errorf("audit save: %w", err)
-			}
-
-			return nil
-		})
+		auditLog := audit.Log{
+			Code:   promoCode,
+			Action: "create",
+			By:     string(opts.UserName),
+		}
+		err := h.saveService.CreatePromoWithAudit(h.appEnv.Ctx, modelToRepo, auditLog)
 
 		if err != nil {
 			log.Error("failed to process promo creation transaction",

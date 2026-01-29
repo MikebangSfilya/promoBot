@@ -10,6 +10,7 @@ import (
 	"github.com/MikebangSfilya/promoBot/internal/audit"
 	cfg "github.com/MikebangSfilya/promoBot/internal/config"
 	"github.com/MikebangSfilya/promoBot/internal/db/repo"
+	"github.com/MikebangSfilya/promoBot/internal/service/promo"
 
 	"strings"
 	"sync"
@@ -80,14 +81,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	appenv := &base.ApplicationEnv{
+	appEnv := &base.ApplicationEnv{
 		Bot:      botAPI,
 		Database: db,
 		Ctx:      ctx,
 	}
 
-	http.Handle("/promo/generate", restApiStart(appenv, auditStorage, txManager))
-	messageHandlers, callbackHandlers := initHandlers(appenv, stateStorage, auditStorage, txManager)
+	http.Handle("/promo/generate", restApiStart(appEnv, auditStorage, txManager))
+	messageHandlers, callbackHandlers := initHandlers(appEnv, stateStorage, auditStorage, txManager)
 	botAPI.SetCommands(locpool, supportedLanguages, base.ConvertHandlersToCommands(messageHandlers))
 
 	usersConfigPath := os.Getenv(cfg.EnvUsersConfigFile)
@@ -191,16 +192,18 @@ func establishConnections(ctx context.Context) (stateStorage wizard.StateStorage
 func initHandlers(
 	appEnv *base.ApplicationEnv,
 	stateStorage wizard.StateStorage,
-	auditStorage audit.Storage,
+	auditStorage *audit.FileStorage,
 	tx *repo.TxManager) (
 	messageHandlers []base.MessageHandler,
 	callbackHandlers []base.CallbackHandler) {
 
-	promo := handlers.NewPromoHandler(appEnv, stateStorage, auditStorage, tx)
+	promoRepo := repo.NewPromo(appEnv)
+	service := promo.NewSaveService(promoRepo, auditStorage, tx)
+	promoHandler := handlers.NewPromoHandler(appEnv, stateStorage, service)
 	messageHandlers = []base.MessageHandler{
-		handlers.NewGetHandler(appEnv),
-		promo,
-		handlers.NewStats(promo),
+		handlers.NewGetHandler(appEnv, promoRepo),
+		promoHandler,
+		handlers.NewStats(appEnv, stateStorage, service),
 	}
 	callbackHandlers = []base.CallbackHandler{
 		// handlers.NewRevokeCallbackHandler(appEnv),
@@ -250,10 +253,11 @@ func initLogger(env string) *slog.Logger {
 	return logger
 }
 
-func restApiStart(appEnv *base.ApplicationEnv, audit audit.Storage, manager *repo.TxManager) http.Handler {
-	//appEnv *base.ApplicationEnv, repo *repo.Promo, audit audit.Storage, manager repo.TxManager
+func restApiStart(appEnv *base.ApplicationEnv, audit *audit.FileStorage, manager *repo.TxManager) http.Handler {
+	//appEnv *base.ApplicationEnv, repo *repo.Promo, audit audit.SaverStorage, manager repo.TxManager
 	promoRepo := repo.NewPromo(appEnv)
-	restHandler := handlers.NewOneTimePromoHandler(appEnv, promoRepo, audit, manager)
+	service := promo.NewSaveService(promoRepo, audit, manager)
+	restHandler := handlers.NewOneTimePromoHandler(service)
 
 	return restHandler.GeneratePromo()
 }
