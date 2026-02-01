@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/MikebangSfilya/promoBot/internal/model"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kozalosev/goSadTgBot/base"
 	"github.com/stretchr/testify/assert"
@@ -252,7 +253,9 @@ func TestPromo_CreatePromo_InTransaction(t *testing.T) {
 
 	tx, err := pool.Begin(ctx)
 	require.NoError(t, err)
-	defer tx.Rollback(ctx)
+	defer func(tx pgx.Tx, ctx context.Context) {
+		_ = tx.Rollback(ctx)
+	}(tx, ctx)
 
 	ctxWithTx := context.WithValue(ctx, TxKey{}, tx)
 

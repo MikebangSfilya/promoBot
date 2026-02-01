@@ -8,6 +8,8 @@ BIN = bin/$(APP)
 DB_URL=postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=disable
 
 .PHONY: migrate-up migrate-down migrate-force migrate-create migrate-version
+
+
 migrate-up:
 	migrate -path ./db/migrations -database "$(DB_URL)" up
 migrate-down:
@@ -138,9 +140,12 @@ deploy: compose-build-nocache up
 
 reset: clean-volumes compose-build-nocache up
 
+lint:
+	golangci-lint run ./...
+
 # Phony Targets
 .PHONY: build run deps test clean \
         compose-build compose-build-nocache up down downfull logs logs-bot \
         restart clean-volumes ps \
         db tables databases query dump \
-        dev deploy reset
+        dev deploy reset lint
