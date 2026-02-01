@@ -4,3 +4,4 @@ users.yaml
 bin/
 
 audit-logs
+*.patch

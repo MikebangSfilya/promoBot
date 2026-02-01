@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 
 	"github.com/MikebangSfilya/promoBot/internal/audit"
 	cfg "github.com/MikebangSfilya/promoBot/internal/config"
 	"github.com/MikebangSfilya/promoBot/internal/db/repo"
+	"github.com/MikebangSfilya/promoBot/internal/service/promo"
 
 	"strings"
 	"sync"
@@ -39,7 +41,7 @@ func main() {
 	if DevLvl == "" {
 		DevLvl = "local"
 	}
-	log := InitLogger(DevLvl)
+	log := initLogger(DevLvl)
 	log.Info("starting up", "devLvl", DevLvl)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -50,6 +52,7 @@ func main() {
 	srv := server.Start(os.Getenv(cfg.EnvAppPort))
 
 	stateStorage, db := establishConnections(ctx)
+	txManager := repo.NewTxManager(db)
 
 	bot, err := tgbotapi.NewBotAPI(os.Getenv(cfg.EnvAPIToken))
 	if err != nil {
@@ -60,7 +63,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	api := base.NewBotAPI(bot)
+	botAPI := base.NewBotAPI(bot)
 
 	debugMode := os.Getenv(cfg.EnvDebug)
 	bot.Debug = strings.ToLower(debugMode) == "true" || debugMode == "1"
@@ -78,14 +81,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	appenv := &base.ApplicationEnv{
-		Bot:      api,
+	appEnv := &base.ApplicationEnv{
+		Bot:      botAPI,
 		Database: db,
 		Ctx:      ctx,
 	}
 
-	messageHandlers, callbackHandlers := initHandlers(appenv, stateStorage, auditStorage)
-	api.SetCommands(locpool, supportedLanguages, base.ConvertHandlersToCommands(messageHandlers))
+	http.Handle("/promo/generate", restApiStart(appEnv, auditStorage, txManager))
+	messageHandlers, callbackHandlers := initHandlers(appEnv, stateStorage, auditStorage, txManager)
+	botAPI.SetCommands(locpool, supportedLanguages, base.ConvertHandlersToCommands(messageHandlers))
 
 	usersConfigPath := os.Getenv(cfg.EnvUsersConfigFile)
 	usersConfig, err := cfg.NewUsersConfig(usersConfigPath)
@@ -104,7 +108,7 @@ func main() {
 		CallbackHandlers: callbackHandlers,
 		Settings:         usersConfig,
 		LangPool:         locpool,
-		API:              api,
+		API:              botAPI,
 		StateStorage:     stateStorage,
 		DB:               db,
 	}
@@ -188,16 +192,18 @@ func establishConnections(ctx context.Context) (stateStorage wizard.StateStorage
 func initHandlers(
 	appEnv *base.ApplicationEnv,
 	stateStorage wizard.StateStorage,
-	auditStorage audit.Storage) (
+	auditStorage *audit.FileStorage,
+	tx *repo.TxManager) (
 	messageHandlers []base.MessageHandler,
 	callbackHandlers []base.CallbackHandler) {
 
-	txManager := repo.NewTxManager(appEnv.Database)
-	promo := handlers.NewPromoHandler(appEnv, stateStorage, auditStorage, txManager)
+	promoRepo := repo.NewPromo(appEnv)
+	service := promo.NewSaveService(promoRepo, auditStorage, tx)
+	promoHandler := handlers.NewPromoHandler(appEnv, stateStorage, service)
 	messageHandlers = []base.MessageHandler{
-		handlers.NewGetHandler(appEnv),
-		promo,
-		handlers.NewStats(promo),
+		handlers.NewGetHandler(appEnv, promoRepo),
+		promoHandler,
+		handlers.NewStats(appEnv, stateStorage, service),
 	}
 	callbackHandlers = []base.CallbackHandler{
 		// handlers.NewRevokeCallbackHandler(appEnv),
@@ -216,7 +222,7 @@ func shutdown(stateStorage wizard.StateStorage, db *pgxpool.Pool) {
 	}
 }
 
-func GetLogLevel(env string) slog.Level {
+func getLogLevel(env string) slog.Level {
 	switch strings.ToLower(env) {
 	case "local":
 		return slog.LevelDebug
@@ -229,8 +235,8 @@ func GetLogLevel(env string) slog.Level {
 	}
 }
 
-func InitLogger(env string) *slog.Logger {
-	lvl := GetLogLevel(env)
+func initLogger(env string) *slog.Logger {
+	lvl := getLogLevel(env)
 	opts := &slog.HandlerOptions{
 		Level: lvl,
 	}
@@ -245,4 +251,13 @@ func InitLogger(env string) *slog.Logger {
 	slog.SetDefault(logger)
 
 	return logger
+}
+
+func restApiStart(appEnv *base.ApplicationEnv, audit *audit.FileStorage, manager *repo.TxManager) http.Handler {
+	//appEnv *base.ApplicationEnv, repo *repo.Promo, audit audit.SaverStorage, manager repo.TxManager
+	promoRepo := repo.NewPromo(appEnv)
+	service := promo.NewSaveService(promoRepo, audit, manager)
+	restHandler := handlers.NewOneTimePromoHandler(service)
+
+	return restHandler.GeneratePromo()
 }

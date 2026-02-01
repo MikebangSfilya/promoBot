@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/MikebangSfilya/promoBot/internal/model"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/kozalosev/goSadTgBot/base"
 )
@@ -18,8 +19,12 @@ func NewPromo(appEnv *base.ApplicationEnv) *Promo {
 	return &Promo{appEnv: appEnv}
 }
 
-func (p *Promo) CreatePromo(ctx context.Context, db DBQuerier, promoCode model.PromoCode) error {
-	if db == nil {
+func (p *Promo) CreatePromo(ctx context.Context, promoCode model.PromoCode) error {
+	var db DBQuerier
+
+	if tx, ok := ctx.Value(TxKey{}).(pgx.Tx); ok {
+		db = tx
+	} else {
 		db = p.appEnv.Database
 	}
 
@@ -53,7 +58,7 @@ func (p *Promo) CreatePromo(ctx context.Context, db DBQuerier, promoCode model.P
 	return nil
 }
 
-func (p *Promo) GetTable() ([]model.ResponseCode, error) {
+func (p *Promo) GetTable(ctx context.Context) ([]model.ResponseCode, error) {
 	const op = "Promo.GetTable"
 	log := slog.With("op", op)
 
@@ -62,7 +67,7 @@ func (p *Promo) GetTable() ([]model.ResponseCode, error) {
 		FROM promo_codes
 		ORDER BY capacity;
 		`
-	rows, err := p.appEnv.Database.Query(p.appEnv.Ctx, query)
+	rows, err := p.appEnv.Database.Query(ctx, query)
 	if err != nil {
 		log.Error("failed to query promo codes table",
 			slog.Group("error",
@@ -102,7 +107,7 @@ func (p *Promo) GetTable() ([]model.ResponseCode, error) {
 	return promo, nil
 }
 
-func (p *Promo) GetPromoCode(codes []string) ([]model.StatResponseCode, error) {
+func (p *Promo) GetPromoCode(ctx context.Context, codes []string) ([]model.StatResponseCode, error) {
 	const op = "Promo.GetPromoCode"
 	log := slog.With("op", op)
 
@@ -119,7 +124,7 @@ func (p *Promo) GetPromoCode(codes []string) ([]model.StatResponseCode, error) {
 		WHERE code = any($1)
 		GROUP BY code, bonus_length, capacity;
 	`
-	rows, err := p.appEnv.Database.Query(p.appEnv.Ctx, query, codes)
+	rows, err := p.appEnv.Database.Query(ctx, query, codes)
 	if err != nil {
 		log.Error("failed to query promo codes table",
 			slog.Group("error",

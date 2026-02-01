@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"context"
 	"log/slog"
+	"time"
 
 	"github.com/MikebangSfilya/promoBot/internal/config"
-	"github.com/MikebangSfilya/promoBot/internal/db/repo"
+	"github.com/MikebangSfilya/promoBot/internal/formatter"
 	"github.com/MikebangSfilya/promoBot/internal/handlers/common"
-	"github.com/MikebangSfilya/promoBot/internal/handlers/formatter"
+	"github.com/MikebangSfilya/promoBot/internal/model"
 	tgbotapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/kozalosev/goSadTgBot/base"
 )
@@ -17,19 +19,23 @@ const (
 	listPromoCodesTotalEnding = "listPromoCodesTotalEnding"
 )
 
+type TableGetter interface {
+	GetTable(ctx context.Context) ([]model.ResponseCode, error)
+}
+
 type GetHandle struct {
 	base.CommandHandlerTrait
 	common.PrivateCommandTrait
 
 	appEnv *base.ApplicationEnv
 
-	PromoService *repo.Promo
+	PromoService TableGetter
 }
 
-func NewGetHandler(appEnv *base.ApplicationEnv) *GetHandle {
+func NewGetHandler(appEnv *base.ApplicationEnv, service TableGetter) *GetHandle {
 	h := &GetHandle{
 		appEnv:       appEnv,
-		PromoService: repo.NewPromo(appEnv),
+		PromoService: service,
 	}
 	h.HandlerRefForTrait = h
 	return h
@@ -58,7 +64,10 @@ func (h *GetHandle) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 		return
 	}
 
-	promoCodes, err := h.PromoService.GetTable()
+	ctx, cancel := context.WithTimeout(h.appEnv.Ctx, 10*time.Second)
+	defer cancel()
+
+	promoCodes, err := h.PromoService.GetTable(ctx)
 	if err != nil {
 		log.Error("failed to get promo codes table",
 			slog.Group("error",
