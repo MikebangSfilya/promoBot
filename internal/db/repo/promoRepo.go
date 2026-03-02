@@ -58,16 +58,27 @@ func (p *Promo) CreatePromo(ctx context.Context, promoCode model.PromoCode) erro
 	return nil
 }
 
-func (p *Promo) GetTable(ctx context.Context) ([]model.ResponseCode, error) {
+func (p *Promo) GetTable(ctx context.Context, codes []string) ([]model.ResponseCode, error) {
 	const op = "Promo.GetTable"
 	log := slog.With("op", op)
+	var args []interface{}
 
 	query := `
 		SELECT code, bonus_length, capacity
 		FROM promo_codes
-		ORDER BY capacity;
 		`
-	rows, err := p.appEnv.Database.Query(ctx, query)
+
+	if len(codes) > 0 {
+		arg := make([]string, len(codes))
+		for i, code := range codes {
+			arg[i] = "%" + code + "%"
+		}
+		query += ` WHERE code ILIKE ANY($1)`
+		args = append(args, arg)
+	}
+
+	query += `ORDER BY capacity;`
+	rows, err := p.appEnv.Database.Query(ctx, query, args...)
 	if err != nil {
 		log.Error("failed to query promo codes table",
 			slog.Group("error",

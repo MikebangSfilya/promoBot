@@ -3,9 +3,7 @@ package handlers
 import (
 	"context"
 	"log/slog"
-	"strings"
 	"time"
-	"unicode"
 
 	"github.com/MikebangSfilya/promoBot/internal/config"
 	"github.com/MikebangSfilya/promoBot/internal/formatter"
@@ -94,12 +92,6 @@ func (h *Stats) action(reqEnv *base.RequestEnv, msg *tgbotapi.Message, fields wi
 	const op = "stats.action"
 	codesInput := fields.FindField(CodesField).Data.(wizard.Txt).Value
 	h.processAndReplyPromoList(reqEnv, msg, codesInput, op)
-}
-
-func parseArguments(arg string) []string {
-	return strings.FieldsFunc(arg, func(r rune) bool {
-		return unicode.IsSpace(r) || r == ',' || r == ';'
-	})
 }
 
 func (h *Stats) processAndReplyPromoList(reqEnv *base.RequestEnv, msg *tgbotapi.Message, input string, op string) {
