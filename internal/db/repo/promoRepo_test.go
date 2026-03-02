@@ -161,7 +161,7 @@ func TestPromo_GetTable(t *testing.T) {
 	}
 
 	// Retrieve the table
-	result, err := repo.GetTable(ctx)
+	result, err := repo.GetTable(ctx, nil)
 	require.NoError(t, err)
 
 	// Verify that we received all promo codes
@@ -199,7 +199,7 @@ func TestPromo_GetTable_Empty(t *testing.T) {
 	repo := NewPromo(appEnv)
 
 	// Get table from empty DB
-	result, err := repo.GetTable(ctx)
+	result, err := repo.GetTable(ctx, nil)
 	require.NoError(t, err)
 	assert.Empty(t, result)
 }
