@@ -83,21 +83,55 @@ func TestNewModel(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if !tc.wantErr {
 
-				promo, err := NewPromo(tc.promoCode, tc.length, tc.capacity, nil)
-				var baseTime = time.Now().Add(30 * 24 * time.Hour)
+				promo, err := NewPromo(tc.promoCode, tc.length, tc.capacity, nil, nil)
 
 				assert.NoError(t, err)
 				require.NotNil(t, promo)
 				require.Equal(t, promo.Code, tc.promoCode)
 				require.Equal(t, promo.BonusLength, tc.length)
 				require.Equal(t, promo.Capacity, tc.capacity)
-				require.WithinDuration(t, *promo.Until, baseTime, time.Second)
+				require.Nil(t, promo.Since)
+				require.Nil(t, promo.Until)
 			} else {
-				promo, err := NewPromo(tc.promoCode, tc.length, tc.capacity, nil)
+				promo, err := NewPromo(tc.promoCode, tc.length, tc.capacity, nil, nil)
 				require.Error(t, err)
 				assert.NotNil(t, promo)
 				require.EqualError(t, err, tc.err.Error())
 			}
 		})
 	}
+}
+
+func TestNewPromoWithDates(t *testing.T) {
+	t.Run("explicit_since_and_until", func(t *testing.T) {
+		since := time.Now().Add(1 * 24 * time.Hour)
+		until := time.Now().Add(30 * 24 * time.Hour)
+
+		promo, err := NewPromo("TEST", 10, 5, &since, &until)
+		require.NoError(t, err)
+		require.NotNil(t, promo.Since)
+		require.NotNil(t, promo.Until)
+		require.WithinDuration(t, since, *promo.Since, time.Second)
+		require.WithinDuration(t, until, *promo.Until, time.Second)
+	})
+
+	t.Run("until_in_the_past", func(t *testing.T) {
+		past := time.Now().Add(-24 * time.Hour)
+		_, err := NewPromo("TEST", 10, 5, nil, &past)
+		require.ErrorIs(t, err, errPastUntil)
+	})
+
+	t.Run("until_before_since", func(t *testing.T) {
+		since := time.Now().Add(10 * 24 * time.Hour)
+		until := time.Now().Add(5 * 24 * time.Hour)
+		_, err := NewPromo("TEST", 10, 5, &since, &until)
+		require.ErrorIs(t, err, errUntilBeforeSince)
+	})
+
+	t.Run("nil_dates_no_defaults", func(t *testing.T) {
+		promo, err := NewPromo("TEST", 10, 5, nil, nil)
+		require.NoError(t, err)
+		require.Nil(t, promo.Since)
+		require.Nil(t, promo.Until)
+	})
 }

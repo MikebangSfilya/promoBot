@@ -212,7 +212,14 @@ func TestNewFileStorage(t *testing.T) {
 	})
 
 	t.Run("fails when cannot create directory", func(t *testing.T) {
-		storage, err := NewFileStorage("/root/forbidden/audit-logs")
+		tmpDir := t.TempDir()
+		// Create a regular file where a directory is expected,
+		// so MkdirAll fails on all platforms.
+		blockingFile := filepath.Join(tmpDir, "not-a-dir")
+		err := os.WriteFile(blockingFile, []byte{}, 0644)
+		require.NoError(t, err)
+
+		storage, err := NewFileStorage(filepath.Join(blockingFile, "audit-logs"))
 		require.Error(t, err)
 		require.Nil(t, storage)
 	})

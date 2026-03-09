@@ -34,7 +34,7 @@ func (p *Promo) CreatePromo(ctx context.Context, promoCode model.PromoCode) erro
 	query := `
 		INSERT INTO Promo_codes
 		(code, bonus_length, since, until, capacity)
-		VALUES ($1, $2, $3, $4, $5)
+		VALUES ($1, $2, COALESCE($3, current_date), $4, $5)
 		`
 
 	_, err := db.Exec(

@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -37,17 +38,10 @@ func setupTestDB(t *testing.T) (*pgxpool.Pool, func()) {
 	pool, err := pgxpool.New(ctx, connStr)
 	require.NoError(t, err)
 
-	// Apply migrations
-	// Note: indentation inside the string below is manually aligned to tabs
-	_, err = pool.Exec(ctx, `
-		CREATE TABLE IF NOT EXISTS Promo_Codes (
-			code varchar(16) PRIMARY KEY,
-			bonus_length integer NOT NULL,
-			since date NOT NULL DEFAULT current_date,
-			until date,
-			capacity integer NOT NULL CHECK ( capacity >= 0 )
-		);
-	`)
+	// Apply migrations from the actual migration file
+	migration, err := os.ReadFile("../../../db/migrations/000001_create_tables.up.sql")
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, string(migration))
 	require.NoError(t, err)
 
 	cleanup := func() {
@@ -71,16 +65,17 @@ func TestPromo_CreatePromo(t *testing.T) {
 	repo := NewPromo(appEnv)
 
 	tests := []struct {
-		name    string
-		promo   model.PromoCode
-		wantErr bool
+		name         string
+		promo        model.PromoCode
+		wantErr      bool
+		validateFunc func(t *testing.T, row model.PromoCode)
 	}{
 		{
 			name: "successful creation",
 			promo: model.PromoCode{
 				Code:        "TEST123",
 				BonusLength: 10,
-				Since:       time.Now(),
+				Since:       func() *time.Time { t := time.Now(); return &t }(),
 				Until:       func() *time.Time { t := time.Now().Add(30 * 24 * time.Hour); return &t }(),
 				Capacity:    5,
 			},
@@ -91,11 +86,26 @@ func TestPromo_CreatePromo(t *testing.T) {
 			promo: model.PromoCode{
 				Code:        "TEST456",
 				BonusLength: 20,
-				Since:       time.Now(),
+				Since:       func() *time.Time { t := time.Now(); return &t }(),
 				Until:       nil,
 				Capacity:    10,
 			},
 			wantErr: false,
+		},
+		{
+			name: "promo with nil since uses current_date, not 0001-01-01",
+			promo: model.PromoCode{
+				Code:        "TEST789",
+				BonusLength: 5,
+				Since:       nil,
+				Until:       nil,
+				Capacity:    3,
+			},
+			wantErr: false,
+			validateFunc: func(t *testing.T, row model.PromoCode) {
+				require.NotNil(t, row.Since)
+				assert.False(t, row.Since.IsZero(), "since must not be the zero time (0001-01-01)")
+			},
 		},
 	}
 
@@ -107,11 +117,24 @@ func TestPromo_CreatePromo(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 
-				// Verify that the promo code was actually created
-				var count int
-				err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Codes WHERE code = $1", tt.promo.Code).Scan(&count)
+				rows, err := pool.Query(ctx,
+					"SELECT code, bonus_length, since, until, capacity FROM Promo_Codes WHERE code = $1",
+					tt.promo.Code)
 				require.NoError(t, err)
-				assert.Equal(t, 1, count)
+				defer rows.Close()
+
+				var fetched []model.PromoCode
+				for rows.Next() {
+					var row model.PromoCode
+					require.NoError(t, rows.Scan(&row.Code, &row.BonusLength, &row.Since, &row.Until, &row.Capacity))
+					fetched = append(fetched, row)
+				}
+				require.NoError(t, rows.Err())
+				require.Len(t, fetched, 1)
+
+				if tt.validateFunc != nil {
+					tt.validateFunc(t, fetched[0])
+				}
 			}
 		})
 	}
@@ -134,21 +157,21 @@ func TestPromo_GetTable(t *testing.T) {
 		{
 			Code:        "PROMO1",
 			BonusLength: 5,
-			Since:       time.Now(),
+			Since:       func() *time.Time { t := time.Now(); return &t }(),
 			Until:       func() *time.Time { t := time.Now().Add(30 * 24 * time.Hour); return &t }(),
 			Capacity:    10,
 		},
 		{
 			Code:        "PROMO2",
 			BonusLength: 15,
-			Since:       time.Now(),
+			Since:       func() *time.Time { t := time.Now(); return &t }(),
 			Until:       func() *time.Time { t := time.Now().Add(30 * 24 * time.Hour); return &t }(),
 			Capacity:    5,
 		},
 		{
 			Code:        "PROMO3",
 			BonusLength: 20,
-			Since:       time.Now(),
+			Since:       func() *time.Time { t := time.Now(); return &t }(),
 			Until:       func() *time.Time { t := time.Now().Add(30 * 24 * time.Hour); return &t }(),
 			Capacity:    15,
 		},
@@ -219,7 +242,7 @@ func TestPromo_CreatePromo_Duplicate(t *testing.T) {
 	promo := model.PromoCode{
 		Code:        "DUPLICATE",
 		BonusLength: 10,
-		Since:       time.Now(),
+		Since:       func() *time.Time { t := time.Now(); return &t }(),
 		Until:       func() *time.Time { t := time.Now().Add(30 * 24 * time.Hour); return &t }(),
 		Capacity:    5,
 	}
@@ -247,7 +270,7 @@ func TestPromo_CreatePromo_InTransaction(t *testing.T) {
 	promo := model.PromoCode{
 		Code:        "TX_PROMO",
 		BonusLength: 10,
-		Since:       time.Now(),
+		Since:       func() *time.Time { t := time.Now(); return &t }(),
 		Capacity:    5,
 	}
 
