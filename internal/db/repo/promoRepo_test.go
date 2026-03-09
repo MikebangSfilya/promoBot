@@ -80,7 +80,7 @@ func TestPromo_CreatePromo(t *testing.T) {
 			promo: model.PromoCode{
 				Code:        "TEST123",
 				BonusLength: 10,
-				Since:       time.Now(),
+				Since:       func() *time.Time { t := time.Now(); return &t }(),
 				Until:       func() *time.Time { t := time.Now().Add(30 * 24 * time.Hour); return &t }(),
 				Capacity:    5,
 			},
@@ -91,7 +91,7 @@ func TestPromo_CreatePromo(t *testing.T) {
 			promo: model.PromoCode{
 				Code:        "TEST456",
 				BonusLength: 20,
-				Since:       time.Now(),
+				Since:       func() *time.Time { t := time.Now(); return &t }(),
 				Until:       nil,
 				Capacity:    10,
 			},
@@ -134,21 +134,21 @@ func TestPromo_GetTable(t *testing.T) {
 		{
 			Code:        "PROMO1",
 			BonusLength: 5,
-			Since:       time.Now(),
+			Since:       func() *time.Time { t := time.Now(); return &t }(),
 			Until:       func() *time.Time { t := time.Now().Add(30 * 24 * time.Hour); return &t }(),
 			Capacity:    10,
 		},
 		{
 			Code:        "PROMO2",
 			BonusLength: 15,
-			Since:       time.Now(),
+			Since:       func() *time.Time { t := time.Now(); return &t }(),
 			Until:       func() *time.Time { t := time.Now().Add(30 * 24 * time.Hour); return &t }(),
 			Capacity:    5,
 		},
 		{
 			Code:        "PROMO3",
 			BonusLength: 20,
-			Since:       time.Now(),
+			Since:       func() *time.Time { t := time.Now(); return &t }(),
 			Until:       func() *time.Time { t := time.Now().Add(30 * 24 * time.Hour); return &t }(),
 			Capacity:    15,
 		},
@@ -219,7 +219,7 @@ func TestPromo_CreatePromo_Duplicate(t *testing.T) {
 	promo := model.PromoCode{
 		Code:        "DUPLICATE",
 		BonusLength: 10,
-		Since:       time.Now(),
+		Since:       func() *time.Time { t := time.Now(); return &t }(),
 		Until:       func() *time.Time { t := time.Now().Add(30 * 24 * time.Hour); return &t }(),
 		Capacity:    5,
 	}
@@ -247,7 +247,7 @@ func TestPromo_CreatePromo_InTransaction(t *testing.T) {
 	promo := model.PromoCode{
 		Code:        "TX_PROMO",
 		BonusLength: 10,
-		Since:       time.Now(),
+		Since:       func() *time.Time { t := time.Now(); return &t }(),
 		Capacity:    5,
 	}
 

@@ -25,6 +25,7 @@ func (h *OneTimePromoHandler) GeneratePromo() http.HandlerFunc {
 	const op = "OneTimePromoHandler.GeneratePromo"
 	log := slog.With("op", op)
 	type CreateRequest struct {
+		Since       *time.Time `json:"since"`
 		Until       *time.Time `json:"until"`
 		Code        string     `json:"code"`
 		BonusLength int        `json:"bonus_length"`
@@ -46,7 +47,7 @@ func (h *OneTimePromoHandler) GeneratePromo() http.HandlerFunc {
 			return
 		}
 
-		code, err := model.NewPromo(req.Code, req.BonusLength, req.Capacity, req.Until)
+		code, err := model.NewPromo(req.Code, req.BonusLength, req.Capacity, req.Since, req.Until)
 		if err != nil {
 			log.Error("fail to create promo",
 				slog.Group("Error",

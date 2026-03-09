@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/MikebangSfilya/promoBot/internal/audit"
 	"github.com/MikebangSfilya/promoBot/internal/model"
@@ -79,7 +80,7 @@ func TestOneTimePromoHandler_GeneratePromo(t *testing.T) {
 				m.On("CreatePromoWithAudit",
 					mock.Anything,
 					mock.MatchedBy(func(p model.PromoCode) bool {
-						return p.Code == "DB_FAIL" && p.BonusLength == 10
+						return p.Code == "DB_FAIL" && p.BonusLength == 10 && p.Since == nil && p.Until == nil
 					}),
 					mock.MatchedBy(func(a audit.Log) bool {
 						return a.Code == "DB_FAIL" && a.Action == "create"
@@ -90,6 +91,26 @@ func TestOneTimePromoHandler_GeneratePromo(t *testing.T) {
 			wantBody:   "Promo creation failed",
 		},
 		{
+			name:   "Success: Promo Created With Dates",
+			method: http.MethodPost,
+			body:   `{"code": "DATED", "bonus_length": 5, "capacity": 10, "since": "2026-05-01T00:00:00Z", "until": "2026-06-01T00:00:00Z"}`,
+			setupMock: func(m *MockRestSaveService) {
+				m.On("CreatePromoWithAudit",
+					mock.Anything,
+					mock.MatchedBy(func(p model.PromoCode) bool {
+						return p.Code == "DATED" && p.BonusLength == 5 && p.Capacity == 10 &&
+							p.Since != nil && p.Since.Equal(time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)) &&
+							p.Until != nil && p.Until.Equal(time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC))
+					}),
+					mock.MatchedBy(func(a audit.Log) bool {
+						return a.Code == "DATED" && a.Action == "create" && a.By == "auto"
+					}),
+				).Return(nil)
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `{"code":"DATED","status":"ok"}`,
+		},
+		{
 			name:   "Success: Promo Created",
 			method: http.MethodPost,
 			body:   `{"code": "SUCCESS", "bonus_length": 5, "capacity": 100}`,
@@ -97,7 +118,7 @@ func TestOneTimePromoHandler_GeneratePromo(t *testing.T) {
 				m.On("CreatePromoWithAudit",
 					mock.Anything,
 					mock.MatchedBy(func(p model.PromoCode) bool {
-						return p.Code == "SUCCESS" && p.BonusLength == 5 && p.Capacity == 100
+						return p.Code == "SUCCESS" && p.BonusLength == 5 && p.Capacity == 100 && p.Since == nil && p.Until == nil
 					}),
 					mock.MatchedBy(func(a audit.Log) bool {
 						return a.Code == "SUCCESS" && a.Action == "create" && a.By == "auto"

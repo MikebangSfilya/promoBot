@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/MikebangSfilya/promoBot/internal/audit"
 	"github.com/MikebangSfilya/promoBot/internal/config"
@@ -22,16 +23,24 @@ const (
 
 	BadLength   = "BadLength"
 	BadCapacity = "BadCapacity"
+	BadSince    = "BadSince"
+	BadUntil    = "BadUntil"
 
 	fieldPromo        = "promo"
 	fieldConfirmation = "confirmation"
 	fieldLength       = "length"
 	fieldCapacity     = "capacity"
+	fieldSetDates     = "setDates"
+	fieldSince        = "since"
+	fieldUntil        = "until"
 	fullMsg           = "messages.promo.created_full"
 
-	actionCreate = "actionCreate"
-	actionCancel = "actionCancel"
-	textToCreate = "textToCreate"
+	actionCreate        = "actionCreate"
+	actionCancel        = "actionCancel"
+	actionSetBothDates  = "actionSetBothDates"
+	actionDefaultDates  = "actionDefaultDates"
+	actionFromNowToDate = "actionFromNowToDate"
+	textToCreate        = "textToCreate"
 
 	promoCanceled    = "promoCanceled"
 	errToCreatePromo = "errToCreatePromo"
@@ -75,6 +84,15 @@ func (h *PromoHandler) GetWizardDescriptor() *wizard.FormDescriptor {
 
 	desc.AddField(fieldCapacity, promoFieldsTrPrefix+fieldCapacity)
 
+	setDates := desc.AddField(fieldSetDates, promoFieldsTrPrefix+fieldSetDates)
+	setDates.InlineKeyboardAnswers = []string{actionSetBothDates, actionDefaultDates, actionFromNowToDate}
+
+	sinceField := desc.AddField(fieldSince, promoFieldsTrPrefix+fieldSince)
+	sinceField.SkipIf = skipUnlessFieldValue{Name: fieldSetDates, Value: actionSetBothDates}
+
+	untilField := desc.AddField(fieldUntil, promoFieldsTrPrefix+fieldUntil)
+	untilField.SkipIf = &wizard.SkipOnFieldValue{Name: fieldSetDates, Value: actionDefaultDates}
+
 	confirm := desc.AddField(fieldConfirmation, textToCreate)
 	confirm.InlineKeyboardAnswers = []string{actionCreate, actionCancel}
 	return desc
@@ -103,11 +121,14 @@ func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 		return
 	}
 
-	promoForm := wizard.NewWizard(h, 4)
+	promoForm := wizard.NewWizard(h, 7)
 
 	promoForm.AddEmptyField(fieldPromo, wizard.Text)
 	promoForm.AddEmptyField(fieldLength, wizard.Text)
 	promoForm.AddEmptyField(fieldCapacity, wizard.Text)
+	promoForm.AddEmptyField(fieldSetDates, wizard.Text)
+	promoForm.AddEmptyField(fieldSince, wizard.Text)
+	promoForm.AddEmptyField(fieldUntil, wizard.Text)
 	promoForm.AddEmptyField(fieldConfirmation, wizard.Text)
 
 	promoForm.ProcessNextField(reqEnv, msg)
@@ -153,7 +174,47 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 		return
 	}
 
-	modelToRepo, err := model.NewPromo(promoCode, length, capacity, nil)
+	var (
+		since *time.Time
+		until *time.Time
+	)
+	switch extractPromoInfo(fields, fieldSetDates) {
+	case actionSetBothDates:
+		sinceStr := extractPromoInfo(fields, fieldSince)
+		since, err = parseDate(sinceStr)
+		if err != nil {
+			log.Error("failed to parse since date",
+				slog.Group("error",
+					"message", err.Error(),
+					"value", sinceStr))
+			reply(BadSince)
+			return
+		}
+
+		untilStr := extractPromoInfo(fields, fieldUntil)
+		until, err = parseDate(untilStr)
+		if err != nil {
+			log.Error("failed to parse until date",
+				slog.Group("error",
+					"message", err.Error(),
+					"value", untilStr))
+			reply(BadUntil)
+			return
+		}
+	case actionFromNowToDate:
+		untilStr := extractPromoInfo(fields, fieldUntil)
+		until, err = parseDate(untilStr)
+		if err != nil {
+			log.Error("failed to parse until date",
+				slog.Group("error",
+					"message", err.Error(),
+					"value", untilStr))
+			reply(BadUntil)
+			return
+		}
+	}
+
+	modelToRepo, err := model.NewPromo(promoCode, length, capacity, since, until)
 	if err != nil {
 		log.Error("failed to create promo model",
 			slog.Group("error",
@@ -227,4 +288,34 @@ func strToInt(s string) (int, error) {
 		return 0, fmt.Errorf("empty string")
 	}
 	return strconv.Atoi(s)
+}
+
+// skipUnlessFieldValue is a wizard.SkipCondition that skips the field
+// unless the referenced field has the specified value.
+type skipUnlessFieldValue struct {
+	Name  string
+	Value string
+}
+
+func (s skipUnlessFieldValue) ShouldBeSkipped(form *wizard.Form) bool {
+	f := form.Fields.FindField(s.Name)
+	if f == nil {
+		return false
+	}
+	txtData, ok := f.Data.(wizard.Txt)
+	return !ok || txtData.Value != s.Value
+}
+
+func parseDate(s string) (*time.Time, error) {
+	if days, err := strconv.Atoi(s); err == nil {
+		t := time.Now().Add(time.Duration(days) * 24 * time.Hour)
+		return &t, nil
+	}
+	if t, err := time.Parse("02.01.2006", s); err == nil {
+		return &t, nil
+	}
+	if t, err := time.Parse("2006-01-02", s); err == nil {
+		return &t, nil
+	}
+	return nil, fmt.Errorf("invalid date format: %s", s)
 }
