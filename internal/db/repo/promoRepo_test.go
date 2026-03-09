@@ -74,7 +74,7 @@ func TestPromo_CreatePromo(t *testing.T) {
 		name         string
 		promo        model.PromoCode
 		wantErr      bool
-		validateFunc func(t *testing.T)
+		validateFunc func(t *testing.T, row model.PromoCode)
 	}{
 		{
 			name: "successful creation",
@@ -108,11 +108,9 @@ func TestPromo_CreatePromo(t *testing.T) {
 				Capacity:    3,
 			},
 			wantErr: false,
-			validateFunc: func(t *testing.T) {
-				var since time.Time
-				err := pool.QueryRow(ctx, "SELECT since FROM Promo_Codes WHERE code = $1", "TEST789").Scan(&since)
-				require.NoError(t, err)
-				assert.False(t, since.IsZero(), "since must not be the zero time (0001-01-01)")
+			validateFunc: func(t *testing.T, row model.PromoCode) {
+				require.NotNil(t, row.Since)
+				assert.False(t, row.Since.IsZero(), "since must not be the zero time (0001-01-01)")
 			},
 		},
 	}
@@ -125,15 +123,24 @@ func TestPromo_CreatePromo(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 
-				// Verify that the promo code was actually created
-				var count int
-				err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Codes WHERE code = $1", tt.promo.Code).Scan(&count)
+				rows, err := pool.Query(ctx,
+					"SELECT code, bonus_length, since, until, capacity FROM Promo_Codes WHERE code = $1",
+					tt.promo.Code)
 				require.NoError(t, err)
-				assert.Equal(t, 1, count)
-			}
+				defer rows.Close()
 
-			if tt.validateFunc != nil {
-				tt.validateFunc(t)
+				var fetched []model.PromoCode
+				for rows.Next() {
+					var row model.PromoCode
+					require.NoError(t, rows.Scan(&row.Code, &row.BonusLength, &row.Since, &row.Until, &row.Capacity))
+					fetched = append(fetched, row)
+				}
+				require.NoError(t, rows.Err())
+				require.Len(t, fetched, 1)
+
+				if tt.validateFunc != nil {
+					tt.validateFunc(t, fetched[0])
+				}
 			}
 		})
 	}
