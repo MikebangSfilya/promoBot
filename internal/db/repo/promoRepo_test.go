@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -37,17 +38,10 @@ func setupTestDB(t *testing.T) (*pgxpool.Pool, func()) {
 	pool, err := pgxpool.New(ctx, connStr)
 	require.NoError(t, err)
 
-	// Apply migrations
-	// Note: indentation inside the string below is manually aligned to tabs
-	_, err = pool.Exec(ctx, `
-		CREATE TABLE IF NOT EXISTS Promo_Codes (
-			code varchar(16) PRIMARY KEY,
-			bonus_length integer NOT NULL,
-			since date NOT NULL DEFAULT current_date,
-			until date,
-			capacity integer NOT NULL CHECK ( capacity >= 0 )
-		);
-	`)
+	// Apply migrations from the actual migration file
+	migration, err := os.ReadFile("../../../db/migrations/000001_create_tables.up.sql")
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, string(migration))
 	require.NoError(t, err)
 
 	cleanup := func() {
