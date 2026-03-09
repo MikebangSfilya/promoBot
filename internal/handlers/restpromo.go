@@ -22,27 +22,21 @@ type flexDate time.Time
 func (f *flexDate) UnmarshalJSON(b []byte) error {
 	var days int
 	if err := json.Unmarshal(b, &days); err == nil {
-		t := time.Now().Add(time.Duration(days) * 24 * time.Hour)
-		*f = flexDate(t)
+		*f = flexDate(*daysFromNow(days))
 		return nil
 	}
 
-	var s string
-	if err := json.Unmarshal(b, &s); err != nil {
+	var dateStr string
+	if err := json.Unmarshal(b, &dateStr); err != nil {
 		return err
 	}
 
-	if t, err := parseDate(s); err == nil {
+	if t, err := parseDate(dateStr); err == nil {
 		*f = flexDate(*t)
 		return nil
 	}
 
-	if t, err := time.Parse(time.RFC3339, s); err == nil {
-		*f = flexDate(t)
-		return nil
-	}
-
-	return fmt.Errorf("invalid date format: %s", s)
+	return fmt.Errorf("invalid date format: %s", dateStr)
 }
 
 func (f *flexDate) toTime() *time.Time {

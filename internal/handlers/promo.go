@@ -316,16 +316,19 @@ func (s skipUnlessFieldValue) ShouldBeSkipped(form *wizard.Form) bool {
 	return !ok || txtData.Value != s.Value
 }
 
+func daysFromNow(days int) *time.Time {
+	t := time.Now().Add(time.Duration(days) * 24 * time.Hour)
+	return &t
+}
+
 func parseDate(s string) (*time.Time, error) {
 	if days, err := strconv.Atoi(s); err == nil {
-		t := time.Now().Add(time.Duration(days) * 24 * time.Hour)
-		return &t, nil
+		return daysFromNow(days), nil
 	}
-	if t, err := time.Parse("02.01.2006", s); err == nil {
-		return &t, nil
-	}
-	if t, err := time.Parse("2006-01-02", s); err == nil {
-		return &t, nil
+	for _, layout := range []string{"02.01.2006", "2006-01-02", time.RFC3339} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return &t, nil
+		}
 	}
 	return nil, fmt.Errorf("invalid date format: %s", s)
 }
