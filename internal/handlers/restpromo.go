@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -10,6 +11,47 @@ import (
 	"github.com/MikebangSfilya/promoBot/internal/audit"
 	"github.com/MikebangSfilya/promoBot/internal/model"
 )
+
+// flexDate unmarshals JSON date fields from multiple formats:
+//   - full RFC3339 timestamp: "2026-05-01T00:00:00Z"
+//   - date-only string: "2026-05-01" or "01.05.2026"
+//   - integer days from now as JSON number: 30
+//   - integer days from now as JSON string: "30"
+type flexDate time.Time
+
+func (f *flexDate) UnmarshalJSON(b []byte) error {
+	var days int
+	if err := json.Unmarshal(b, &days); err == nil {
+		t := time.Now().Add(time.Duration(days) * 24 * time.Hour)
+		*f = flexDate(t)
+		return nil
+	}
+
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+
+	if t, err := parseDate(s); err == nil {
+		*f = flexDate(*t)
+		return nil
+	}
+
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		*f = flexDate(t)
+		return nil
+	}
+
+	return fmt.Errorf("invalid date format: %s", s)
+}
+
+func (f *flexDate) toTime() *time.Time {
+	if f == nil {
+		return nil
+	}
+	t := time.Time(*f)
+	return &t
+}
 
 type OneTimePromoHandler struct {
 	SaveService SaveService
@@ -25,11 +67,11 @@ func (h *OneTimePromoHandler) GeneratePromo() http.HandlerFunc {
 	const op = "OneTimePromoHandler.GeneratePromo"
 	log := slog.With("op", op)
 	type CreateRequest struct {
-		Since       *time.Time `json:"since"`
-		Until       *time.Time `json:"until"`
-		Code        string     `json:"code"`
-		BonusLength int        `json:"bonus_length"`
-		Capacity    int        `json:"capacity"`
+		Since       *flexDate `json:"since"`
+		Until       *flexDate `json:"until"`
+		Code        string    `json:"code"`
+		BonusLength int       `json:"bonus_length"`
+		Capacity    int       `json:"capacity"`
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -47,7 +89,7 @@ func (h *OneTimePromoHandler) GeneratePromo() http.HandlerFunc {
 			return
 		}
 
-		code, err := model.NewPromo(req.Code, req.BonusLength, req.Capacity, req.Since, req.Until)
+		code, err := model.NewPromo(req.Code, req.BonusLength, req.Capacity, req.Since.toTime(), req.Until.toTime())
 		if err != nil {
 			log.Error("fail to create promo",
 				slog.Group("Error",

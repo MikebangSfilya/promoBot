@@ -91,7 +91,7 @@ func TestOneTimePromoHandler_GeneratePromo(t *testing.T) {
 			wantBody:   "Promo creation failed",
 		},
 		{
-			name:   "Success: Promo Created With Dates",
+			name:   "Success: Promo Created With Dates (RFC3339)",
 			method: http.MethodPost,
 			body:   `{"code": "DATED", "bonus_length": 5, "capacity": 10, "since": "2026-05-01T00:00:00Z", "until": "2026-06-01T00:00:00Z"}`,
 			setupMock: func(m *MockRestSaveService) {
@@ -109,6 +109,87 @@ func TestOneTimePromoHandler_GeneratePromo(t *testing.T) {
 			},
 			wantStatus: http.StatusCreated,
 			wantBody:   `{"code":"DATED","status":"ok"}`,
+		},
+		{
+			name:   "Success: Promo Created With Dates (date-only string)",
+			method: http.MethodPost,
+			body:   `{"code": "DATEONLY", "bonus_length": 5, "capacity": 10, "since": "2026-05-01", "until": "2026-06-01"}`,
+			setupMock: func(m *MockRestSaveService) {
+				m.On("CreatePromoWithAudit",
+					mock.Anything,
+					mock.MatchedBy(func(p model.PromoCode) bool {
+						return p.Code == "DATEONLY" && p.BonusLength == 5 && p.Capacity == 10 &&
+							p.Since != nil && p.Since.Equal(time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)) &&
+							p.Until != nil && p.Until.Equal(time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC))
+					}),
+					mock.MatchedBy(func(a audit.Log) bool {
+						return a.Code == "DATEONLY" && a.Action == "create" && a.By == "auto"
+					}),
+				).Return(nil)
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `{"code":"DATEONLY","status":"ok"}`,
+		},
+		{
+			name:   "Success: Promo Created With Dates (days as number)",
+			method: http.MethodPost,
+			body:   `{"code": "DAYS", "bonus_length": 5, "capacity": 10, "until": 30}`,
+			setupMock: func(m *MockRestSaveService) {
+				m.On("CreatePromoWithAudit",
+					mock.Anything,
+					mock.MatchedBy(func(p model.PromoCode) bool {
+						if p.Code != "DAYS" || p.Until == nil {
+							return false
+						}
+						expected := time.Now().Add(30 * 24 * time.Hour)
+						diff := p.Until.Sub(expected)
+						if diff < 0 {
+							diff = -diff
+						}
+						return diff < time.Minute
+					}),
+					mock.MatchedBy(func(a audit.Log) bool {
+						return a.Code == "DAYS" && a.Action == "create" && a.By == "auto"
+					}),
+				).Return(nil)
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `{"code":"DAYS","status":"ok"}`,
+		},
+		{
+			name:   "Success: Promo Created With Dates (days as string)",
+			method: http.MethodPost,
+			body:   `{"code": "DAYSSTR", "bonus_length": 5, "capacity": 10, "until": "30"}`,
+			setupMock: func(m *MockRestSaveService) {
+				m.On("CreatePromoWithAudit",
+					mock.Anything,
+					mock.MatchedBy(func(p model.PromoCode) bool {
+						if p.Code != "DAYSSTR" || p.Until == nil {
+							return false
+						}
+						expected := time.Now().Add(30 * 24 * time.Hour)
+						diff := p.Until.Sub(expected)
+						if diff < 0 {
+							diff = -diff
+						}
+						return diff < time.Minute
+					}),
+					mock.MatchedBy(func(a audit.Log) bool {
+						return a.Code == "DAYSSTR" && a.Action == "create" && a.By == "auto"
+					}),
+				).Return(nil)
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `{"code":"DAYSSTR","status":"ok"}`,
+		},
+		{
+			name:   "Error: Invalid Date Format",
+			method: http.MethodPost,
+			body:   `{"code": "BADDATE", "bonus_length": 5, "capacity": 10, "until": "not-a-date"}`,
+			setupMock: func(m *MockRestSaveService) {
+			},
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "invalid date format",
 		},
 		{
 			name:   "Success: Promo Created",
