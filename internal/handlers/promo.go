@@ -242,11 +242,21 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 			return
 		}
 
+		sinceStr := time.Now().Format("02.01.2006")
+		untilStr := reqenv.Lang.Tr("dateEndless")
+		if modelToRepo.Since != nil {
+			sinceStr = modelToRepo.Since.Format("02.01.2006")
+		}
+		if modelToRepo.Until != nil {
+			untilStr = modelToRepo.Until.Format("02.01.2006")
+		}
 		message := fmt.Sprintf(
 			reqenv.Lang.Tr(fullMsg),
 			promoCode,
 			lengthExtract,
 			capacityExtract,
+			sinceStr,
+			untilStr,
 		)
 		reply(message)
 
