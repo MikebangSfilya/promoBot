@@ -71,9 +71,10 @@ func TestPromo_CreatePromo(t *testing.T) {
 	repo := NewPromo(appEnv)
 
 	tests := []struct {
-		name    string
-		promo   model.PromoCode
-		wantErr bool
+		name         string
+		promo        model.PromoCode
+		wantErr      bool
+		validateFunc func(t *testing.T)
 	}{
 		{
 			name: "successful creation",
@@ -97,6 +98,23 @@ func TestPromo_CreatePromo(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "promo with nil since uses current_date, not 0001-01-01",
+			promo: model.PromoCode{
+				Code:        "TEST789",
+				BonusLength: 5,
+				Since:       nil,
+				Until:       nil,
+				Capacity:    3,
+			},
+			wantErr: false,
+			validateFunc: func(t *testing.T) {
+				var since time.Time
+				err := pool.QueryRow(ctx, "SELECT since FROM Promo_Codes WHERE code = $1", "TEST789").Scan(&since)
+				require.NoError(t, err)
+				assert.False(t, since.IsZero(), "since must not be the zero time (0001-01-01)")
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -112,6 +130,10 @@ func TestPromo_CreatePromo(t *testing.T) {
 				err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Codes WHERE code = $1", tt.promo.Code).Scan(&count)
 				require.NoError(t, err)
 				assert.Equal(t, 1, count)
+			}
+
+			if tt.validateFunc != nil {
+				tt.validateFunc(t)
 			}
 		})
 	}

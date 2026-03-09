@@ -38,7 +38,7 @@ const (
 	actionCreate        = "actionCreate"
 	actionCancel        = "actionCancel"
 	actionSetBothDates  = "actionSetBothDates"
-	actionDefaultDates  = "actionDefaultDates"
+	actionEndlessPromo  = "actionEndlessPromo"
 	actionFromNowToDate = "actionFromNowToDate"
 	textToCreate        = "textToCreate"
 
@@ -85,13 +85,13 @@ func (h *PromoHandler) GetWizardDescriptor() *wizard.FormDescriptor {
 	desc.AddField(fieldCapacity, promoFieldsTrPrefix+fieldCapacity)
 
 	setDates := desc.AddField(fieldSetDates, promoFieldsTrPrefix+fieldSetDates)
-	setDates.InlineKeyboardAnswers = []string{actionSetBothDates, actionDefaultDates, actionFromNowToDate}
+	setDates.InlineKeyboardAnswers = []string{actionSetBothDates, actionEndlessPromo, actionFromNowToDate}
 
 	sinceField := desc.AddField(fieldSince, promoFieldsTrPrefix+fieldSince)
 	sinceField.SkipIf = skipUnlessFieldValue{Name: fieldSetDates, Value: actionSetBothDates}
 
 	untilField := desc.AddField(fieldUntil, promoFieldsTrPrefix+fieldUntil)
-	untilField.SkipIf = &wizard.SkipOnFieldValue{Name: fieldSetDates, Value: actionDefaultDates}
+	untilField.SkipIf = &wizard.SkipOnFieldValue{Name: fieldSetDates, Value: actionEndlessPromo}
 
 	confirm := desc.AddField(fieldConfirmation, textToCreate)
 	confirm.InlineKeyboardAnswers = []string{actionCreate, actionCancel}
