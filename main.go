@@ -36,7 +36,6 @@ var (
 )
 
 func main() {
-
 	DevLvl := os.Getenv(cfg.EnvDevLevel)
 	if DevLvl == "" {
 		DevLvl = "local"
@@ -69,7 +68,6 @@ func main() {
 	bot.Debug = strings.ToLower(debugMode) == "true" || debugMode == "1"
 
 	filePath := os.Getenv(cfg.EnvAuditLogsDir)
-
 	log.Debug("filePath", "path", filePath)
 
 	auditStorage, err := audit.NewFileStorage(filePath)
@@ -159,7 +157,7 @@ func main() {
 	}
 
 	wg.Wait()
-	shutdown(stateStorage, db)
+	shutdown(stateStorage, db, auditStorage)
 }
 
 func establishConnections(ctx context.Context) (stateStorage wizard.StateStorage, db *pgxpool.Pool) {
@@ -184,7 +182,6 @@ func establishConnections(ctx context.Context) (stateStorage wizard.StateStorage
 		os.Getenv(cfg.EnvPostgresPassword),
 		dbName)
 	db = storage.ConnectToDatabase(ctx, dbConfig)
-	//storage.RunMigrations(dbConfig, os.Getenv("MIGRATIONS_REPO"))
 	metrics.RegisterMetricsForPgxPoolStat(db, dbName)
 	return
 }
@@ -205,20 +202,24 @@ func initHandlers(
 		promoHandler,
 		handlers.NewStats(appEnv, stateStorage, service),
 	}
-	callbackHandlers = []base.CallbackHandler{
-		// handlers.NewRevokeCallbackHandler(appEnv),
-	}
+	callbackHandlers = []base.CallbackHandler{}
 	metrics.RegisterMessageHandlerCounters(messageHandlers...)
 	return
 }
 
-func shutdown(stateStorage wizard.StateStorage, db *pgxpool.Pool) {
+func shutdown(stateStorage wizard.StateStorage, db *pgxpool.Pool, auditStorage *audit.FileStorage) {
 	db.Close()
 	if err := stateStorage.Close(); err != nil {
 		slog.Error("failed to close state storage",
 			slog.Group("error",
 				slog.String("message", err.Error()),
 				slog.String("component", "StateStorage.Close")))
+	}
+	if err := auditStorage.Close(); err != nil {
+		slog.Error("failed to close audit storage",
+			slog.Group("error",
+				slog.String("message", err.Error()),
+				slog.String("component", "AuditStorage.Close")))
 	}
 }
 
@@ -237,27 +238,21 @@ func getLogLevel(env string) slog.Level {
 
 func initLogger(env string) *slog.Logger {
 	lvl := getLogLevel(env)
-	opts := &slog.HandlerOptions{
-		Level: lvl,
-	}
+	opts := &slog.HandlerOptions{Level: lvl}
 	var handler slog.Handler
 	if env == "local" {
 		handler = slog.NewTextHandler(os.Stdout, opts)
 	} else {
 		handler = slog.NewJSONHandler(os.Stdout, opts)
 	}
-
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
-
 	return logger
 }
 
-func restApiStart(appEnv *base.ApplicationEnv, audit *audit.FileStorage, manager *repo.TxManager) http.Handler {
-	//appEnv *base.ApplicationEnv, repo *repo.Promo, audit audit.SaverStorage, manager repo.TxManager
+func restApiStart(appEnv *base.ApplicationEnv, auditS *audit.FileStorage, manager *repo.TxManager) http.Handler {
 	promoRepo := repo.NewPromo(appEnv)
-	service := promo.NewSaveService(promoRepo, audit, manager)
+	service := promo.NewSaveService(promoRepo, auditS, manager)
 	restHandler := handlers.NewOneTimePromoHandler(service)
-
 	return restHandler.GeneratePromo()
 }
