@@ -64,11 +64,8 @@ func (h *GetHandle) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 		return
 	}
 	codesInput := msg.CommandArguments()
-	if len(codesInput) > 0 {
-		h.processAndReplyPromoList(reqEnv, msg, codesInput, op)
-	} else {
-		h.processAndReplyPromoList(reqEnv, msg, "", op)
-	}
+
+	h.processAndReplyPromoList(reqEnv, msg, codesInput, op)
 
 }
 
