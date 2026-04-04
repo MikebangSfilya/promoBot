@@ -15,7 +15,7 @@ type Repository interface {
 }
 
 type AuditSaver interface {
-	Save(s any) error
+	Save(s audit.Log) error
 }
 
 type TxManager interface {
