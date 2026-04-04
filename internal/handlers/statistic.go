@@ -21,7 +21,7 @@ const (
 )
 
 type StatsGetter interface {
-	GetStats(ctx context.Context, codes []string) ([]model.StatResponseCode, error)
+	GetStats(ctx context.Context, codes ...string) ([]model.StatResponseCode, error)
 }
 
 type Stats struct {
@@ -107,7 +107,7 @@ func (h *Stats) processAndReplyPromoList(reqEnv *base.RequestEnv, msg *tgbotapi.
 	ctx, cancel := context.WithTimeout(h.appEnv.Ctx, 10*time.Second)
 	defer cancel()
 
-	codes, err := h.PromoService.GetStats(ctx, argSlice)
+	codes, err := h.PromoService.GetStats(ctx, argSlice...)
 	if err != nil {
 		log.Error("failed to get promo code",
 			slog.Group("error",

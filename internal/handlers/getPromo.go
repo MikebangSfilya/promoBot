@@ -20,7 +20,7 @@ const (
 )
 
 type TableGetter interface {
-	GetTable(ctx context.Context, codes []string) ([]model.ResponseCode, error)
+	GetTable(ctx context.Context, codes ...string) ([]model.ResponseCode, error)
 }
 
 type GetHandle struct {
@@ -81,7 +81,7 @@ func (h *GetHandle) processAndReplyPromoList(reqEnv *base.RequestEnv, msg *tgbot
 	ctx, cancel := context.WithTimeout(h.appEnv.Ctx, 10*time.Second)
 	defer cancel()
 
-	codes, err := h.PromoService.GetTable(ctx, argSlice)
+	codes, err := h.PromoService.GetTable(ctx, argSlice...)
 	if err != nil {
 		log.Error("failed to get promo code",
 			slog.Group("error",

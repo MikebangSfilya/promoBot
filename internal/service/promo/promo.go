@@ -10,8 +10,8 @@ import (
 
 type Repository interface {
 	CreatePromo(ctx context.Context, promoCode model.PromoCode) error
-	GetTable(ctx context.Context, codes []string) ([]model.ResponseCode, error)
-	GetPromoCode(ctx context.Context, codes []string) ([]model.StatResponseCode, error)
+	GetTable(ctx context.Context, codes ...string) ([]model.ResponseCode, error)
+	GetPromoCode(ctx context.Context, codes ...string) ([]model.StatResponseCode, error)
 }
 
 type AuditSaver interface {
@@ -48,10 +48,10 @@ func (s *Service) CreatePromoWithAudit(ctx context.Context, modelToRepo model.Pr
 	})
 }
 
-func (s *Service) GetTable(ctx context.Context, codes []string) ([]model.ResponseCode, error) {
-	return s.repo.GetTable(ctx, codes)
+func (s *Service) GetTable(ctx context.Context, codes ...string) ([]model.ResponseCode, error) {
+	return s.repo.GetTable(ctx, codes...)
 }
 
-func (s *Service) GetStats(ctx context.Context, codes []string) ([]model.StatResponseCode, error) {
-	return s.repo.GetPromoCode(ctx, codes)
+func (s *Service) GetStats(ctx context.Context, codes ...string) ([]model.StatResponseCode, error) {
+	return s.repo.GetPromoCode(ctx, codes...)
 }
