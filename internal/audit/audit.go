@@ -6,10 +6,13 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 type FileStorage struct {
 	filePath string
+	logs     chan Log
+	done     chan struct{}
 }
 
 func NewFileStorage(auditDir string) (*FileStorage, error) {
@@ -28,44 +31,57 @@ func NewFileStorage(auditDir string) (*FileStorage, error) {
 
 	logPath := filepath.Join(auditDir, "audit.json")
 	absPath, _ := filepath.Abs(logPath)
+	file, err := os.OpenFile(absPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to open file: %w", op, err)
+	}
 	log.Info("audit file location determined",
 		slog.String("path", absPath))
 
-	return &FileStorage{filePath: absPath}, nil
+	fs := &FileStorage{
+		filePath: logPath,
+		logs:     make(chan Log, 30),
+		done:     make(chan struct{}),
+	}
+	go fs.worker(file)
+
+	return fs, nil
 }
 
-func (fs FileStorage) Save(s any) error {
-	const op = "audit.Save"
-
-	file, err := os.OpenFile(fs.filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return fmt.Errorf("%s: failed to open file: %w", op, err)
-	}
-	defer func(file *os.File) {
-		err := file.Close()
-		if err != nil {
-			slog.Error("failed to close the audit file",
-				slog.Group("error",
-					slog.String("message", err.Error()),
-					slog.String("component", "audit.Save"),
-					slog.String("path", fs.filePath)))
+func (fs *FileStorage) worker(file *os.File) {
+	defer func() {
+		if err := file.Close(); err != nil {
+			slog.Error("failed to close the audit file in worker",
+				slog.String("error", err.Error()),
+				slog.String("path", fs.filePath))
 		}
-	}(file)
+		close(fs.done)
+	}()
 
-	log, err := serialize(s)
-	if err != nil {
-		return fmt.Errorf("failed to serialize an audit log: %w", err)
+	for s := range fs.logs {
+		if s.At.IsZero() {
+			s.At = time.Now()
+		}
+
+		logData, err := json.Marshal(s)
+		if err != nil {
+			slog.Error("failed to serialize audit log", slog.String("error", err.Error()))
+			continue
+		}
+
+		if _, err := file.Write(append(logData, '\n')); err != nil {
+			slog.Error("failed to write audit log", slog.String("error", err.Error()))
+		}
 	}
-	if _, err = file.Write(log); err != nil {
-		return fmt.Errorf("failed to write to the audit file: %w", err)
-	}
+}
+
+func (fs *FileStorage) Save(s Log) error {
+	fs.logs <- s
 	return nil
 }
 
-func serialize(s any) ([]byte, error) {
-	b, err := json.Marshal(s)
-	if err != nil {
-		return nil, err
-	}
-	return append(b, '\n'), nil
+func (fs *FileStorage) Close() error {
+	close(fs.logs)
+	<-fs.done
+	return nil
 }
