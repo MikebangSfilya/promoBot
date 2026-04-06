@@ -3,9 +3,7 @@ package handlers
 import (
 	"context"
 	"log/slog"
-	"strings"
 	"time"
-	"unicode"
 
 	"github.com/MikebangSfilya/promoBot/internal/config"
 	"github.com/MikebangSfilya/promoBot/internal/formatter"
@@ -23,7 +21,7 @@ const (
 )
 
 type StatsGetter interface {
-	GetStats(ctx context.Context, codes []string) ([]model.StatResponseCode, error)
+	GetStats(ctx context.Context, codes ...string) ([]model.StatResponseCode, error)
 }
 
 type Stats struct {
@@ -96,12 +94,6 @@ func (h *Stats) action(reqEnv *base.RequestEnv, msg *tgbotapi.Message, fields wi
 	h.processAndReplyPromoList(reqEnv, msg, codesInput, op)
 }
 
-func parseArguments(arg string) []string {
-	return strings.FieldsFunc(arg, func(r rune) bool {
-		return unicode.IsSpace(r) || r == ',' || r == ';'
-	})
-}
-
 func (h *Stats) processAndReplyPromoList(reqEnv *base.RequestEnv, msg *tgbotapi.Message, input string, op string) {
 	log := slog.With("op", op, "user_id", msg.From.ID)
 	reply := base.NewReplier(h.appEnv, reqEnv, msg)
@@ -115,7 +107,7 @@ func (h *Stats) processAndReplyPromoList(reqEnv *base.RequestEnv, msg *tgbotapi.
 	ctx, cancel := context.WithTimeout(h.appEnv.Ctx, 10*time.Second)
 	defer cancel()
 
-	codes, err := h.PromoService.GetStats(ctx, argSlice)
+	codes, err := h.PromoService.GetStats(ctx, argSlice...)
 	if err != nil {
 		log.Error("failed to get promo code",
 			slog.Group("error",

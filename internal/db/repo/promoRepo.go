@@ -7,6 +7,7 @@ import (
 
 	"github.com/MikebangSfilya/promoBot/internal/model"
 	"github.com/jackc/pgx/v5"
+	"github.com/samber/lo"
 
 	"github.com/kozalosev/goSadTgBot/base"
 )
@@ -58,16 +59,22 @@ func (p *Promo) CreatePromo(ctx context.Context, promoCode model.PromoCode) erro
 	return nil
 }
 
-func (p *Promo) GetTable(ctx context.Context) ([]model.ResponseCode, error) {
+func (p *Promo) GetTable(ctx context.Context, codes ...string) ([]model.ResponseCode, error) {
 	const op = "Promo.GetTable"
 	log := slog.With("op", op)
 
 	query := `
 		SELECT code, bonus_length, capacity
 		FROM promo_codes
+		WHERE cardinality($1::text[]) = 0 OR code ILIKE ANY($1)
 		ORDER BY capacity;
-		`
-	rows, err := p.appEnv.Database.Query(ctx, query)
+	`
+
+	args := lo.Map(codes, func(code string, _ int) string {
+		return "%" + code + "%"
+	})
+
+	rows, err := p.appEnv.Database.Query(ctx, query, args)
 	if err != nil {
 		log.Error("failed to query promo codes table",
 			slog.Group("error",
@@ -107,7 +114,7 @@ func (p *Promo) GetTable(ctx context.Context) ([]model.ResponseCode, error) {
 	return promo, nil
 }
 
-func (p *Promo) GetPromoCode(ctx context.Context, codes []string) ([]model.StatResponseCode, error) {
+func (p *Promo) GetPromoCode(ctx context.Context, codes ...string) ([]model.StatResponseCode, error) {
 	const op = "Promo.GetPromoCode"
 	log := slog.With("op", op)
 

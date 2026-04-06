@@ -207,6 +207,12 @@ func TestPromo_GetTable(t *testing.T) {
 	assert.Equal(t, "PROMO3", result[2].Code)
 	assert.Equal(t, 20, result[2].BonusLength)
 	assert.Equal(t, 15, result[2].Capacity)
+
+	// Check filtration also works
+	result, err = repo.GetTable(ctx, "1")
+	require.NoError(t, err)
+	assert.Len(t, result, 1)
+	assert.Equal(t, "PROMO1", result[0].Code)
 }
 
 func TestPromo_GetTable_Empty(t *testing.T) {

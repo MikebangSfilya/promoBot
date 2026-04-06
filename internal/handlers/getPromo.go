@@ -20,7 +20,7 @@ const (
 )
 
 type TableGetter interface {
-	GetTable(ctx context.Context) ([]model.ResponseCode, error)
+	GetTable(ctx context.Context, codes ...string) ([]model.ResponseCode, error)
 }
 
 type GetHandle struct {
@@ -63,28 +63,42 @@ func (h *GetHandle) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 		reply(errNoPermission)
 		return
 	}
+	codesInput := msg.CommandArguments()
+
+	h.processAndReplyPromoList(reqEnv, msg, codesInput, op)
+
+}
+
+func (h *GetHandle) processAndReplyPromoList(reqEnv *base.RequestEnv, msg *tgbotapi.Message, input string, op string) {
+	log := slog.With("op", op, "user_id", msg.From.ID)
+	reply := base.NewReplier(h.appEnv, reqEnv, msg)
+
+	argSlice := parseArguments(input)
 
 	ctx, cancel := context.WithTimeout(h.appEnv.Ctx, 10*time.Second)
 	defer cancel()
 
-	promoCodes, err := h.PromoService.GetTable(ctx)
+	codes, err := h.PromoService.GetTable(ctx, argSlice...)
 	if err != nil {
-		log.Error("failed to get promo codes table",
+		log.Error("failed to get promo code",
 			slog.Group("error",
-				"message", err.Error(),
-				"component", "PromoService.GetTable"))
-		reply("failure")
+				slog.String("message", err.Error()),
+				slog.String("field", CodesField),
+				slog.String("input", input),
+			))
+		reply(failure)
 		return
 	}
 
-	if len(promoCodes) == 0 {
+	if len(codes) == 0 {
 		reply(noPromo)
 		return
 	}
 
-	sb := formatter.FormatList(
+	list := formatter.FormatList(
 		reqEnv.Lang.Tr(listPromoCodesTitle),
 		reqEnv.Lang.Tr(listPromoCodesTotalEnding),
-		promoCodes)
-	reply(sb)
+		codes)
+
+	reply(list)
 }
