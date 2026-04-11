@@ -77,6 +77,9 @@ deps:
 test:
 	go test -v ./...
 
+test-short:
+	go test ./...
+
 clean:
 	rm -rf bin/
 
@@ -87,7 +90,15 @@ compose-build:
 compose-build-nocache:
 	$(COMPOSE) build --no-cache
 
-up:
+init:
+	@echo "=> Preparing environment..."
+	@mkdir -p audit-logs
+	@if [ "$$(stat -c %u audit-logs)" != "10001" ]; then \
+		echo "=> Setting permissions for audit-logs. Sudo password might be required."; \
+		sudo chown -R 10001:10001 audit-logs; \
+	fi
+
+up: init
 	$(COMPOSE) up -d --build
 
 up-infra:
@@ -148,4 +159,4 @@ lint:
         compose-build compose-build-nocache up down downfull logs logs-bot \
         restart clean-volumes ps \
         db tables databases query dump \
-        dev deploy reset lint
+        dev deploy reset lint test-short

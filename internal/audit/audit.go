@@ -6,10 +6,14 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
 )
 
 type FileStorage struct {
+	sync.Mutex
 	filePath string
+	file     *os.File
 }
 
 func NewFileStorage(auditDir string) (*FileStorage, error) {
@@ -18,8 +22,7 @@ func NewFileStorage(auditDir string) (*FileStorage, error) {
 
 	if auditDir == "" {
 		auditDir = "audit-logs"
-		log.Info("no audit directory specified",
-			slog.String("default", auditDir))
+		log.Info("no audit directory specified", slog.String("default", auditDir))
 	}
 
 	if err := os.MkdirAll(auditDir, 0755); err != nil {
@@ -28,44 +31,49 @@ func NewFileStorage(auditDir string) (*FileStorage, error) {
 
 	logPath := filepath.Join(auditDir, "audit.json")
 	absPath, _ := filepath.Abs(logPath)
-	log.Info("audit file location determined",
-		slog.String("path", absPath))
 
-	return &FileStorage{filePath: absPath}, nil
+	file, err := os.OpenFile(absPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("%s: failed to open file: %w", op, err)
+	}
+
+	log.Info("audit file location determined", slog.String("path", absPath))
+
+	return &FileStorage{
+		filePath: absPath,
+		file:     file,
+	}, nil
 }
 
-func (fs FileStorage) Save(s any) error {
-	const op = "audit.Save"
+func (fs *FileStorage) Save(s Log) error {
+	if s.At.IsZero() {
+		s.At = time.Now()
+	}
 
-	file, err := os.OpenFile(fs.filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	logData, err := json.Marshal(s)
 	if err != nil {
-		return fmt.Errorf("%s: failed to open file: %w", op, err)
+		return fmt.Errorf("failed to serialize audit log: %w", err)
 	}
-	defer func(file *os.File) {
-		err := file.Close()
-		if err != nil {
-			slog.Error("failed to close the audit file",
-				slog.Group("error",
-					slog.String("message", err.Error()),
-					slog.String("component", "audit.Save"),
-					slog.String("path", fs.filePath)))
-		}
-	}(file)
 
-	log, err := serialize(s)
-	if err != nil {
-		return fmt.Errorf("failed to serialize an audit log: %w", err)
+	logData = append(logData, '\n')
+
+	fs.Lock()
+	defer fs.Unlock()
+
+	if _, err := fs.file.Write(logData); err != nil {
+		return fmt.Errorf("failed to write audit log to file: %w", err)
 	}
-	if _, err = file.Write(log); err != nil {
-		return fmt.Errorf("failed to write to the audit file: %w", err)
-	}
+
 	return nil
 }
 
-func serialize(s any) ([]byte, error) {
-	b, err := json.Marshal(s)
-	if err != nil {
-		return nil, err
+func (fs *FileStorage) Close() error {
+	fs.Lock()
+	defer fs.Unlock()
+
+	if err := fs.file.Sync(); err != nil {
+		slog.Error("failed to sync audit file on close", slog.String("error", err.Error()))
 	}
-	return append(b, '\n'), nil
+
+	return fs.file.Close()
 }
