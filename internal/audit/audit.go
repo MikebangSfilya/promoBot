@@ -32,7 +32,6 @@ func NewFileStorage(auditDir string) (*FileStorage, error) {
 	logPath := filepath.Join(auditDir, "audit.json")
 	absPath, _ := filepath.Abs(logPath)
 
-	// Открываем файл на весь срок жизни приложения
 	file, err := os.OpenFile(absPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to open file: %w", op, err)
