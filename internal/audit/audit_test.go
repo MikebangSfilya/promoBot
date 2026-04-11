@@ -111,8 +111,6 @@ func TestFileStorage_Save(t *testing.T) {
 			err = storage.Save(tt.input)
 			require.NoError(t, err)
 
-			// IMPORTANT: Close the storage. This blocks execution until
-			// the worker writes all pending data to disk and shuts down.
 			err = storage.Close()
 			require.NoError(t, err)
 
@@ -131,7 +129,7 @@ func TestNewFileStorage(t *testing.T) {
 		storage, err := NewFileStorage(auditDir)
 		require.NoError(t, err)
 		require.NotNil(t, storage)
-		defer storage.Close() // Ensure the goroutine is closed
+		defer storage.Close()
 
 		_, err = os.Stat(auditDir)
 		require.NoError(t, err, "directory should be created")
@@ -154,7 +152,6 @@ func TestNewFileStorage(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, storage)
 		defer storage.Close()
-
 		_, err = os.Stat("audit-logs")
 		require.NoError(t, err)
 	})
