@@ -10,6 +10,8 @@ import (
 
 type Repository interface {
 	CreatePromo(ctx context.Context, promoCode model.PromoCode) error
+	UpdatePromo(ctx context.Context, promoCode model.PromoCode) error
+	DeletePromo(ctx context.Context, code string) error
 	GetTable(ctx context.Context, codes ...string) ([]model.ResponseCode, error)
 	GetPromoCode(ctx context.Context, codes ...string) ([]model.StatResponseCode, error)
 }
@@ -39,7 +41,31 @@ func NewSaveService(repo Repository, audit AuditSaver, tx TxManager) *Service {
 func (s *Service) CreatePromoWithAudit(ctx context.Context, modelToRepo model.PromoCode, auditLog audit.Log) error {
 	return s.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
 		if err := s.repo.CreatePromo(ctx, modelToRepo); err != nil {
-			return fmt.Errorf("failed to create modelToRepo: %w", err)
+			return fmt.Errorf("failed to create promo: %w", err)
+		}
+		if err := s.audit.Save(auditLog); err != nil {
+			return fmt.Errorf("failed to save audit info: %w", err)
+		}
+		return nil
+	})
+}
+
+func (s *Service) UpdatePromoWithAudit(ctx context.Context, modelToRepo model.PromoCode, auditLog audit.Log) error {
+	return s.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
+		if err := s.repo.UpdatePromo(ctx, modelToRepo); err != nil {
+			return fmt.Errorf("failed to update promo: %w", err)
+		}
+		if err := s.audit.Save(auditLog); err != nil {
+			return fmt.Errorf("failed to save audit info: %w", err)
+		}
+		return nil
+	})
+}
+
+func (s *Service) DeletePromoWithAudit(ctx context.Context, code string, auditLog audit.Log) error {
+	return s.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
+		if err := s.repo.DeletePromo(ctx, code); err != nil {
+			return fmt.Errorf("failed to delete promo: %w", err)
 		}
 		if err := s.audit.Save(auditLog); err != nil {
 			return fmt.Errorf("failed to save audit info: %w", err)
