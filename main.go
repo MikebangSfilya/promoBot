@@ -200,6 +200,8 @@ func initHandlers(
 	messageHandlers = []base.MessageHandler{
 		handlers.NewGetHandler(appEnv, promoRepo),
 		promoHandler,
+		handlers.NewEditHandler(appEnv, stateStorage, service),
+		handlers.NewDeleteHandler(appEnv, service),
 		handlers.NewStats(appEnv, stateStorage, service),
 	}
 	callbackHandlers = []base.CallbackHandler{}
