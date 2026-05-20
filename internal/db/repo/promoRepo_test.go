@@ -19,6 +19,7 @@ import (
 
 func setupTestDB(t *testing.T) (*pgxpool.Pool, func()) {
 	ctx := context.Background()
+	testcontainers.SkipIfProviderIsNotHealthy(t)
 
 	postgresContainer, err := postgres.Run(ctx,
 		"postgres:14-alpine",
@@ -311,4 +312,83 @@ func TestPromo_CreatePromo_InTransaction(t *testing.T) {
 	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Codes WHERE code = $1", promo.Code).Scan(&countOutside)
 	require.NoError(t, err)
 	assert.Equal(t, 1, countOutside, "Row should be visible after commit")
+}
+
+func TestPromo_UpdatePromo(t *testing.T) {
+	pool, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	appEnv := &base.ApplicationEnv{
+		Database: pool,
+		Ctx:      ctx,
+	}
+	repo := NewPromo(appEnv)
+
+	promo := model.PromoCode{
+		Code:        "UPD_PROMO",
+		BonusLength: 10,
+		Capacity:    5,
+	}
+	require.NoError(t, repo.CreatePromo(ctx, promo))
+
+	until := time.Now().Add(30 * 24 * time.Hour)
+	updated := model.PromoCode{
+		Code:        promo.Code,
+		BonusLength: 20,
+		Capacity:    15,
+		Until:       &until,
+	}
+	require.NoError(t, repo.UpdatePromo(ctx, updated))
+
+	var fetched model.PromoCode
+	err := pool.QueryRow(ctx,
+		"SELECT code, bonus_length, since, until, capacity FROM Promo_Codes WHERE code = $1",
+		promo.Code,
+	).Scan(&fetched.Code, &fetched.BonusLength, &fetched.Since, &fetched.Until, &fetched.Capacity)
+	require.NoError(t, err)
+
+	assert.Equal(t, updated.Code, fetched.Code)
+	assert.Equal(t, updated.BonusLength, fetched.BonusLength)
+	assert.Equal(t, updated.Capacity, fetched.Capacity)
+	require.NotNil(t, fetched.Until)
+	assert.False(t, fetched.Until.IsZero())
+}
+
+func TestPromo_DeletePromo(t *testing.T) {
+	pool, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	appEnv := &base.ApplicationEnv{
+		Database: pool,
+		Ctx:      ctx,
+	}
+	repo := NewPromo(appEnv)
+
+	promo := model.PromoCode{
+		Code:        "DEL_PROMO",
+		BonusLength: 10,
+		Capacity:    5,
+	}
+	require.NoError(t, repo.CreatePromo(ctx, promo))
+	_, err := pool.Exec(ctx,
+		"INSERT INTO Promo_Code_Activations (uid, code, affected_chats) VALUES ($1, $2, $3)",
+		int64(1),
+		promo.Code,
+		1,
+	)
+	require.NoError(t, err)
+
+	require.NoError(t, repo.DeletePromo(ctx, promo.Code))
+
+	var promoCount int
+	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Codes WHERE code = $1", promo.Code).Scan(&promoCount)
+	require.NoError(t, err)
+	assert.Equal(t, 0, promoCount)
+
+	var activationCount int
+	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Code_Activations WHERE code = $1", promo.Code).Scan(&activationCount)
+	require.NoError(t, err)
+	assert.Equal(t, 0, activationCount)
 }

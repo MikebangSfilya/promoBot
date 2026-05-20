@@ -20,17 +20,17 @@ func NewPromo(appEnv *base.ApplicationEnv) *Promo {
 	return &Promo{appEnv: appEnv}
 }
 
-func (p *Promo) CreatePromo(ctx context.Context, promoCode model.PromoCode) error {
-	var db DBQuerier
-
+func (p *Promo) dbFromContext(ctx context.Context) DBQuerier {
 	if tx, ok := ctx.Value(TxKey{}).(pgx.Tx); ok {
-		db = tx
-	} else {
-		db = p.appEnv.Database
+		return tx
 	}
+	return p.appEnv.Database
+}
 
+func (p *Promo) CreatePromo(ctx context.Context, promoCode model.PromoCode) error {
 	const op = "Promo.CreatePromo"
 	log := slog.With("op", op)
+	db := p.dbFromContext(ctx)
 
 	query := `
 		INSERT INTO Promo_codes
@@ -54,6 +54,74 @@ func (p *Promo) CreatePromo(ctx context.Context, promoCode model.PromoCode) erro
 				slog.String("component", "Database.Exec"),
 				slog.String("promo_code", promoCode.Code)))
 		return err
+	}
+
+	return nil
+}
+
+func (p *Promo) UpdatePromo(ctx context.Context, promoCode model.PromoCode) error {
+	const op = "Promo.UpdatePromo"
+	log := slog.With("op", op)
+	db := p.dbFromContext(ctx)
+
+	query := `
+		UPDATE promo_codes
+		SET bonus_length = $2,
+			since = COALESCE($3, current_date),
+			until = $4,
+			capacity = $5
+		WHERE code = $1
+	`
+
+	tag, err := db.Exec(
+		ctx,
+		query,
+		promoCode.Code,
+		promoCode.BonusLength,
+		promoCode.Since,
+		promoCode.Until,
+		promoCode.Capacity,
+	)
+	if err != nil {
+		log.Error("failed to update promo code",
+			slog.Group("error",
+				slog.String("message", err.Error()),
+				slog.String("component", "Database.Exec"),
+				slog.String("promo_code", promoCode.Code)))
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("%s, promo code not found: %s", op, promoCode.Code)
+	}
+
+	return nil
+}
+
+func (p *Promo) DeletePromo(ctx context.Context, code string) error {
+	const op = "Promo.DeletePromo"
+	log := slog.With("op", op)
+	db := p.dbFromContext(ctx)
+
+	if _, err := db.Exec(ctx, "DELETE FROM promo_code_activations WHERE code = $1", code); err != nil {
+		log.Error("failed to delete promo code activations",
+			slog.Group("error",
+				slog.String("message", err.Error()),
+				slog.String("component", "Database.Exec"),
+				slog.String("promo_code", code)))
+		return err
+	}
+
+	tag, err := db.Exec(ctx, "DELETE FROM promo_codes WHERE code = $1", code)
+	if err != nil {
+		log.Error("failed to delete promo code",
+			slog.Group("error",
+				slog.String("message", err.Error()),
+				slog.String("component", "Database.Exec"),
+				slog.String("promo_code", code)))
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("%s, promo code not found: %s", op, code)
 	}
 
 	return nil

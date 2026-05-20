@@ -40,10 +40,14 @@ const (
 	actionSetBothDates  = "actionSetBothDates"
 	actionEndlessPromo  = "actionEndlessPromo"
 	actionFromNowToDate = "actionFromNowToDate"
+	actionUpdate        = "actionUpdate"
 	textToCreate        = "textToCreate"
+	textToUpdate        = "textToUpdate"
 
 	promoCanceled    = "promoCanceled"
+	promoUpdated     = "promoUpdated"
 	errToCreatePromo = "errToCreatePromo"
+	errToUpdatePromo = "errToUpdatePromo"
 	errNoPermission  = "errNoPermission"
 )
 
@@ -121,14 +125,10 @@ func (h *PromoHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 		return
 	}
 
-	promoForm := wizard.NewWizard(h, 7)
+	args := parseArguments(msg.CommandArguments())
 
-	promoForm.AddEmptyField(fieldPromo, wizard.Text)
-	promoForm.AddEmptyField(fieldLength, wizard.Text)
-	promoForm.AddEmptyField(fieldCapacity, wizard.Text)
-	promoForm.AddEmptyField(fieldSetDates, wizard.Text)
-	promoForm.AddEmptyField(fieldSince, wizard.Text)
-	promoForm.AddEmptyField(fieldUntil, wizard.Text)
+	promoForm := wizard.NewWizard(h, 7)
+	addPromoFieldsFromArgs(promoForm, args)
 	promoForm.AddEmptyField(fieldConfirmation, wizard.Text)
 
 	promoForm.ProcessNextField(reqEnv, msg)
