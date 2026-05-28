@@ -28,10 +28,9 @@ func (s *promoFormStub) AddPrefilledField(name string, value interface{}) {
 	s.calls = append(s.calls, formCall{name: name, value: value})
 }
 
-func (s *promoFormStub) AddPrefilledAutoField(string, *tgbotapi.Message) {}
-func (s *promoFormStub) AllRequiredFieldsFilled() bool                   { return false }
-func (s *promoFormStub) ProcessNextField(*base.RequestEnv, *tgbotapi.Message) {
-}
+func (s *promoFormStub) AddPrefilledAutoField(string, *tgbotapi.Message)      {}
+func (s *promoFormStub) AllRequiredFieldsFilled() bool                        { return false }
+func (s *promoFormStub) ProcessNextField(*base.RequestEnv, *tgbotapi.Message) {}
 
 func TestAddPromoFieldsFromArgs(t *testing.T) {
 	tests := []struct {
