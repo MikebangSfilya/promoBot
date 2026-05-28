@@ -6,7 +6,7 @@ func init() {
 		"callbacks.error":                     "The state was lost 😢",
 		"commands.default.message":            "It appears you haven't invoked any of the bot's support commands. Call /promo to create a promo code.",
 
-		"commands.promo.description":  "Generate promo code for dickGrowerBot",
+		"commands.promo.description":  "Generate promo code for DickGrowerBot",
 		"commands.get.description":    "Get promo codes table",
 		"commands.stats.description":  "Get full promo codes statistics",
 		"commands.edit.description":   "Edit an existing promo code",
@@ -70,7 +70,7 @@ func init() {
 		"callbacks.error":                     "Состояние формы потерялось 😢",
 		"commands.default.message":            "Кажется, вы не вызвали ни одной команды, которую поддерживает бот. Вызовите /promo для создания промокода.",
 
-		"commands.promo.description":  "Создать промокод для dickGrowerBot",
+		"commands.promo.description":  "Создать промокод для DickGrowerBot",
 		"commands.get.description":    "Получить таблицу промокодов",
 		"commands.stats.description":  "Получить полную статистику по промокодам",
 		"commands.edit.description":   "Изменить существующий промокод",
