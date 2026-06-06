@@ -97,34 +97,81 @@ func (p *Promo) UpdatePromo(ctx context.Context, promoCode model.PromoCode) erro
 	return nil
 }
 
-func (p *Promo) DeletePromo(ctx context.Context, code string) error {
+func (p *Promo) GetPromo(ctx context.Context, code string) (model.PromoCode, error) {
+	const op = "Promo.GetPromo"
+	log := slog.With("op", op)
+	db := p.dbFromContext(ctx)
+
+	query := `
+		SELECT code, bonus_length, since, until, capacity
+		FROM promo_codes
+		WHERE code = $1
+	`
+
+	var promo model.PromoCode
+	if err := db.QueryRow(ctx, query, code).Scan(
+		&promo.Code,
+		&promo.BonusLength,
+		&promo.Since,
+		&promo.Until,
+		&promo.Capacity,
+	); err != nil {
+		log.Error("failed to get promo code",
+			slog.Group("error",
+				slog.String("message", err.Error()),
+				slog.String("component", "Database.QueryRow"),
+				slog.String("promo_code", code)))
+		return model.PromoCode{}, err
+	}
+
+	return promo, nil
+}
+
+func (p *Promo) DeletePromo(ctx context.Context, code string) (model.PromoDeleteResult, error) {
 	const op = "Promo.DeletePromo"
 	log := slog.With("op", op)
 	db := p.dbFromContext(ctx)
 
-	if _, err := db.Exec(ctx, "DELETE FROM promo_code_activations WHERE code = $1", code); err != nil {
-		log.Error("failed to delete promo code activations",
+	query := `
+		WITH activation AS (
+			SELECT EXISTS(
+				SELECT 1
+				FROM promo_code_activations
+				WHERE code = $1
+			) AS activated
+		),
+		updated AS (
+			UPDATE promo_codes
+			SET capacity = 0
+			WHERE code = $1 AND (SELECT activated FROM activation)
+			RETURNING code
+		),
+		deleted AS (
+			DELETE FROM promo_codes
+			WHERE code = $1 AND NOT (SELECT activated FROM activation)
+			RETURNING code
+		)
+		SELECT EXISTS(SELECT 1 FROM updated), EXISTS(SELECT 1 FROM deleted);
+	`
+
+	var updated, deleted bool
+	if err := db.QueryRow(ctx, query, code).Scan(&updated, &deleted); err != nil {
+		log.Error("failed to delete or disable promo code",
 			slog.Group("error",
 				slog.String("message", err.Error()),
-				slog.String("component", "Database.Exec"),
+				slog.String("component", "Database.QueryRow"),
 				slog.String("promo_code", code)))
-		return err
+		return "", err
 	}
 
-	tag, err := db.Exec(ctx, "DELETE FROM promo_codes WHERE code = $1", code)
-	if err != nil {
-		log.Error("failed to delete promo code",
-			slog.Group("error",
-				slog.String("message", err.Error()),
-				slog.String("component", "Database.Exec"),
-				slog.String("promo_code", code)))
-		return err
+	switch {
+	case updated:
+		return model.PromoDeleteResultDisabled, nil
+	case deleted:
+		return model.PromoDeleteResultDeleted, nil
+	default:
+		return "", fmt.Errorf("%s, promo code not found: %s", op, code)
 	}
-	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("%s, promo code not found: %s", op, code)
-	}
-
-	return nil
 }
 
 func (p *Promo) GetTable(ctx context.Context, codes ...string) ([]model.ResponseCode, error) {

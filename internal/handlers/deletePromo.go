@@ -7,6 +7,7 @@ import (
 	"github.com/MikebangSfilya/promoBot/internal/audit"
 	"github.com/MikebangSfilya/promoBot/internal/config"
 	"github.com/MikebangSfilya/promoBot/internal/handlers/common"
+	"github.com/MikebangSfilya/promoBot/internal/model"
 
 	tgbotapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/kozalosev/goSadTgBot/base"
@@ -14,11 +15,12 @@ import (
 
 const (
 	promoDeleted     = "promoDeleted"
+	promoDisabled    = "promoDisabled"
 	errToDeletePromo = "errToDeletePromo"
 )
 
 type DeleteService interface {
-	DeletePromoWithAudit(ctx context.Context, code string, auditLog audit.Log) error
+	DeletePromoWithAudit(ctx context.Context, code string, auditLog audit.Log) (model.PromoDeleteResult, error)
 }
 
 type DeleteHandler struct {
@@ -73,7 +75,8 @@ func (h *DeleteHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 		Action: "delete",
 		By:     string(opts.UserName),
 	}
-	if err := h.deleteService.DeletePromoWithAudit(h.appEnv.Ctx, code, auditLog); err != nil {
+	result, err := h.deleteService.DeletePromoWithAudit(h.appEnv.Ctx, code, auditLog)
+	if err != nil {
 		log.Error("failed to process promo delete transaction",
 			slog.Group("error",
 				"message", err.Error(),
@@ -82,5 +85,9 @@ func (h *DeleteHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 		return
 	}
 
+	if result == model.PromoDeleteResultDisabled {
+		reply(reqEnv.Lang.Tr(promoDisabled))
+		return
+	}
 	reply(reqEnv.Lang.Tr(promoDeleted))
 }
