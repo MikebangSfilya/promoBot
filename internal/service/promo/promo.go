@@ -12,11 +12,11 @@ import (
 
 type Repository interface {
 	CreatePromo(ctx context.Context, promoCode model.PromoCode) error
-	UpdatePromo(ctx context.Context, promoCode model.PromoCode) error
+	UpdatePromo(ctx context.Context, promoCode model.PromoCode) (model.PromoCode, error)
 	GetPromo(ctx context.Context, code string) (model.PromoCode, error)
-	DeletePromo(ctx context.Context, code string) (model.PromoDeleteResult, error)
+	DeletePromo(ctx context.Context, code string) (model.PromoDeleteResult, int, error)
 	GetTable(ctx context.Context, codes ...string) ([]model.ResponseCode, error)
-	GetPromoCode(ctx context.Context, codes ...string) ([]model.StatResponseCode, error)
+	GetPromoStats(ctx context.Context, codes ...string) ([]model.StatResponseCode, error)
 }
 
 type AuditSaver interface {
@@ -59,12 +59,9 @@ func (s *Service) UpdatePromoWithAudit(ctx context.Context, modelToRepo model.Pr
 		if err != nil {
 			return fmt.Errorf("failed to get current promo: %w", err)
 		}
-		if err := s.repo.UpdatePromo(ctx, modelToRepo); err != nil {
-			return fmt.Errorf("failed to update promo: %w", err)
-		}
-		updatedPromo, err := s.repo.GetPromo(ctx, modelToRepo.Code)
+		updatedPromo, err := s.repo.UpdatePromo(ctx, modelToRepo)
 		if err != nil {
-			return fmt.Errorf("failed to get updated promo: %w", err)
+			return fmt.Errorf("failed to update promo: %w", err)
 		}
 		auditLog.Changes = promoChanges(currentPromo, updatedPromo)
 		if err := s.audit.Save(auditLog); err != nil {
@@ -74,20 +71,24 @@ func (s *Service) UpdatePromoWithAudit(ctx context.Context, modelToRepo model.Pr
 	})
 }
 
-func (s *Service) DeletePromoWithAudit(ctx context.Context, code string, auditLog audit.Log) (model.PromoDeleteResult, error) {
-	var result model.PromoDeleteResult
+func (s *Service) DeletePromoWithAudit(ctx context.Context, code string, auditLog audit.Log) (model.PromoDeleteResult, int, error) {
+	var (
+		result      model.PromoDeleteResult
+		activations int
+	)
 	err := s.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
-		deleteResult, err := s.repo.DeletePromo(ctx, code)
+		deleteResult, activationCount, err := s.repo.DeletePromo(ctx, code)
 		if err != nil {
 			return fmt.Errorf("failed to delete promo: %w", err)
 		}
 		result = deleteResult
+		activations = activationCount
 		if err := s.audit.Save(auditLog); err != nil {
 			return fmt.Errorf("failed to save audit info: %w", err)
 		}
 		return nil
 	})
-	return result, err
+	return result, activations, err
 }
 
 func (s *Service) GetTable(ctx context.Context, codes ...string) ([]model.ResponseCode, error) {
@@ -95,7 +96,7 @@ func (s *Service) GetTable(ctx context.Context, codes ...string) ([]model.Respon
 }
 
 func (s *Service) GetStats(ctx context.Context, codes ...string) ([]model.StatResponseCode, error) {
-	return s.repo.GetPromoCode(ctx, codes...)
+	return s.repo.GetPromoStats(ctx, codes...)
 }
 
 func promoChanges(oldPromo, newPromo model.PromoCode) map[string]audit.Change {

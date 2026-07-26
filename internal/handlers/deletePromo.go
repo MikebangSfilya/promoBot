@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/MikebangSfilya/promoBot/internal/audit"
@@ -20,7 +21,7 @@ const (
 )
 
 type DeleteService interface {
-	DeletePromoWithAudit(ctx context.Context, code string, auditLog audit.Log) (model.PromoDeleteResult, error)
+	DeletePromoWithAudit(ctx context.Context, code string, auditLog audit.Log) (model.PromoDeleteResult, int, error)
 }
 
 type DeleteHandler struct {
@@ -75,7 +76,7 @@ func (h *DeleteHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 		Action: "delete",
 		By:     string(opts.UserName),
 	}
-	result, err := h.deleteService.DeletePromoWithAudit(h.appEnv.Ctx, code, auditLog)
+	result, activations, err := h.deleteService.DeletePromoWithAudit(h.appEnv.Ctx, code, auditLog)
 	if err != nil {
 		log.Error("failed to process promo delete transaction",
 			slog.Group("error",
@@ -86,7 +87,7 @@ func (h *DeleteHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 	}
 
 	if result == model.PromoDeleteResultDisabled {
-		reply(reqEnv.Lang.Tr(promoDisabled))
+		reply(fmt.Sprintf(reqEnv.Lang.Tr(promoDisabled), activations))
 		return
 	}
 	reply(reqEnv.Lang.Tr(promoDeleted))

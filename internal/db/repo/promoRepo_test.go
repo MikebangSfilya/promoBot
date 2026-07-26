@@ -339,10 +339,20 @@ func TestPromo_UpdatePromo(t *testing.T) {
 		Capacity:    15,
 		Until:       &until,
 	}
-	require.NoError(t, repo.UpdatePromo(ctx, updated))
+	actual, err := repo.UpdatePromo(ctx, updated)
+	require.NoError(t, err)
+	assert.Equal(t, updated.Code, actual.Code)
+	assert.Equal(t, updated.BonusLength, actual.BonusLength)
+	assert.Equal(t, updated.Capacity, actual.Capacity)
+	require.NotNil(t, actual.Since)
+	var currentDate time.Time
+	require.NoError(t, pool.QueryRow(ctx, "SELECT current_date").Scan(&currentDate))
+	assert.Equal(t, currentDate.Format(time.DateOnly), actual.Since.Format(time.DateOnly))
+	require.NotNil(t, actual.Until)
+	assert.Equal(t, until.Format(time.DateOnly), actual.Until.Format(time.DateOnly))
 
 	var fetched model.PromoCode
-	err := pool.QueryRow(ctx,
+	err = pool.QueryRow(ctx,
 		"SELECT code, bonus_length, since, until, capacity FROM Promo_Codes WHERE code = $1",
 		promo.Code,
 	).Scan(&fetched.Code, &fetched.BonusLength, &fetched.Since, &fetched.Until, &fetched.Capacity)
@@ -373,9 +383,10 @@ func TestPromo_DeletePromo(t *testing.T) {
 	}
 	require.NoError(t, repo.CreatePromo(ctx, unusedPromo))
 
-	result, err := repo.DeletePromo(ctx, unusedPromo.Code)
+	result, activations, err := repo.DeletePromo(ctx, unusedPromo.Code)
 	require.NoError(t, err)
 	assert.Equal(t, model.PromoDeleteResultDeleted, result)
+	assert.Zero(t, activations)
 
 	var promoCount int
 	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Codes WHERE code = $1", unusedPromo.Code).Scan(&promoCount)
@@ -389,16 +400,18 @@ func TestPromo_DeletePromo(t *testing.T) {
 	}
 	require.NoError(t, repo.CreatePromo(ctx, usedPromo))
 	_, err = pool.Exec(ctx,
-		"INSERT INTO Promo_Code_Activations (uid, code, affected_chats) VALUES ($1, $2, $3)",
+		"INSERT INTO Promo_Code_Activations (uid, code, affected_chats) VALUES ($1, $2, $3), ($4, $2, $3)",
 		int64(1),
 		usedPromo.Code,
 		1,
+		int64(2),
 	)
 	require.NoError(t, err)
 
-	result, err = repo.DeletePromo(ctx, usedPromo.Code)
+	result, activations, err = repo.DeletePromo(ctx, usedPromo.Code)
 	require.NoError(t, err)
 	assert.Equal(t, model.PromoDeleteResultDisabled, result)
+	assert.Equal(t, 2, activations)
 
 	var capacity int
 	err = pool.QueryRow(ctx, "SELECT capacity FROM Promo_Codes WHERE code = $1", usedPromo.Code).Scan(&capacity)
@@ -408,5 +421,5 @@ func TestPromo_DeletePromo(t *testing.T) {
 	var activationCount int
 	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Code_Activations WHERE code = $1", usedPromo.Code).Scan(&activationCount)
 	require.NoError(t, err)
-	assert.Equal(t, 1, activationCount)
+	assert.Equal(t, 2, activationCount)
 }
