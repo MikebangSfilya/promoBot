@@ -12,8 +12,11 @@ const (
 )
 
 func FormatList[T fmt.Stringer](title, ending string, items []T) string {
+	return FormatPage(title, fmt.Sprintf(ending, len(items)), items, 0)
+}
 
-	headingEndingLenghts := len(title) + 5 + len(ending)
+func FormatPage[T fmt.Stringer](title, footer string, items []T, offset int) string {
+	headingEndingLenghts := len(title) + 5 + len(footer)
 	bufferSize := headingEndingLenghts + len(items)*maxLineLength
 
 	sb := strings.Builder{}
@@ -23,11 +26,11 @@ func FormatList[T fmt.Stringer](title, ending string, items []T) string {
 	sb.WriteString(": \n\n")
 
 	for i, item := range items {
-		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, item.String()))
+		sb.WriteString(fmt.Sprintf("%d. %s\n", offset+i+1, item.String()))
 	}
 
 	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf(ending, len(items)))
+	sb.WriteString(footer)
 
 	return sb.String()
 }

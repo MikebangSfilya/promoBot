@@ -182,28 +182,70 @@ func (p *Promo) DeletePromo(ctx context.Context, code string) (model.PromoDelete
 	}
 }
 
-func (p *Promo) GetTable(ctx context.Context, codes ...string) ([]model.ResponseCode, error) {
+func (p *Promo) GetTable(
+	ctx context.Context,
+	limit, offset int,
+	sort model.PromoSort,
+	descending bool,
+	codes ...string,
+) ([]model.ResponseCode, int, error) {
 	const op = "Promo.GetTable"
 	log := slog.With("op", op)
 
-	query := `
-		SELECT code, bonus_length, capacity
-		FROM promo_codes
-		WHERE cardinality($1::text[]) = 0 OR code ILIKE ANY($1)
-		ORDER BY capacity;
-	`
+	if limit <= 0 || offset < 0 {
+		return nil, 0, fmt.Errorf("%s, invalid page bounds", op)
+	}
+
+	orderBy, ok := map[model.PromoSort]string{
+		model.PromoSortCode:     "code",
+		model.PromoSortCapacity: "capacity",
+		model.PromoSortSince:    "since",
+	}[sort]
+	if !ok {
+		return nil, 0, fmt.Errorf("%s, invalid sort: %s", op, sort)
+	}
+
+	direction := "ASC"
+	if descending {
+		direction = "DESC"
+	}
 
 	args := lo.Map(codes, func(code string, _ int) string {
 		return "%" + code + "%"
 	})
 
-	rows, err := p.appEnv.Database.Query(ctx, query, args)
+	filter := `WHERE cardinality($1::text[]) = 0 OR code ILIKE ANY($1)`
+	var total int
+	if err := p.appEnv.Database.QueryRow(ctx, "SELECT count(*) FROM promo_codes "+filter, args).Scan(&total); err != nil {
+		log.Error("failed to count promo codes",
+			slog.Group("error",
+				slog.String("message", err.Error()),
+				slog.String("component", "Database.QueryRow")))
+		return nil, 0, err
+	}
+	if total == 0 {
+		return nil, 0, nil
+	}
+
+	stableOrder := ""
+	if sort != model.PromoSortCode {
+		stableOrder = ", code ASC"
+	}
+	query := fmt.Sprintf(`
+		SELECT code, bonus_length, capacity
+		FROM promo_codes
+		%s
+		ORDER BY %s %s%s
+		LIMIT $2 OFFSET $3;
+	`, filter, orderBy, direction, stableOrder)
+
+	rows, err := p.appEnv.Database.Query(ctx, query, args, limit, offset)
 	if err != nil {
 		log.Error("failed to query promo codes table",
 			slog.Group("error",
 				slog.String("message", err.Error()),
 				slog.String("component", "Database.Query")))
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -221,7 +263,7 @@ func (p *Promo) GetTable(ctx context.Context, codes ...string) ([]model.Response
 				slog.Group("error",
 					slog.String("message", err.Error()),
 					slog.String("component", "rows.Scan")))
-			return nil, err
+			return nil, 0, err
 		}
 		promo = append(promo, prom)
 	}
@@ -231,10 +273,10 @@ func (p *Promo) GetTable(ctx context.Context, codes ...string) ([]model.Response
 			slog.Group("error",
 				slog.String("message", err.Error()),
 				slog.String("component", "rows.Err")))
-		return nil, err
+		return nil, 0, err
 	}
 
-	return promo, nil
+	return promo, total, nil
 }
 
 func (p *Promo) GetPromoStats(ctx context.Context, codes ...string) ([]model.StatResponseCode, error) {

@@ -152,28 +152,32 @@ func TestPromo_GetTable(t *testing.T) {
 	}
 
 	repo := NewPromo(appEnv)
+	since1 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	since2 := since1.AddDate(0, 0, 1)
+	since3 := since1.AddDate(0, 0, 2)
+	until := since1.AddDate(0, 1, 0)
 
 	// Create test data
 	testPromos := []model.PromoCode{
 		{
 			Code:        "PROMO1",
 			BonusLength: 5,
-			Since:       func() *time.Time { t := time.Now(); return &t }(),
-			Until:       func() *time.Time { t := time.Now().Add(30 * 24 * time.Hour); return &t }(),
+			Since:       &since1,
+			Until:       &until,
 			Capacity:    10,
 		},
 		{
 			Code:        "PROMO2",
 			BonusLength: 15,
-			Since:       func() *time.Time { t := time.Now(); return &t }(),
-			Until:       func() *time.Time { t := time.Now().Add(30 * 24 * time.Hour); return &t }(),
+			Since:       &since3,
+			Until:       &until,
 			Capacity:    5,
 		},
 		{
 			Code:        "PROMO3",
 			BonusLength: 20,
-			Since:       func() *time.Time { t := time.Now(); return &t }(),
-			Until:       func() *time.Time { t := time.Now().Add(30 * 24 * time.Hour); return &t }(),
+			Since:       &since2,
+			Until:       &until,
 			Capacity:    15,
 		},
 	}
@@ -185,8 +189,9 @@ func TestPromo_GetTable(t *testing.T) {
 	}
 
 	// Retrieve the table
-	result, err := repo.GetTable(ctx)
+	result, total, err := repo.GetTable(ctx, 20, 0, model.PromoSortCapacity, false)
 	require.NoError(t, err)
+	assert.Equal(t, 3, total)
 
 	// Verify that we received all promo codes
 	assert.Len(t, result, 3)
@@ -210,10 +215,30 @@ func TestPromo_GetTable(t *testing.T) {
 	assert.Equal(t, 15, result[2].Capacity)
 
 	// Check filtration also works
-	result, err = repo.GetTable(ctx, "1")
+	result, total, err = repo.GetTable(ctx, 20, 0, model.PromoSortCapacity, false, "1")
 	require.NoError(t, err)
+	assert.Equal(t, 1, total)
 	assert.Len(t, result, 1)
 	assert.Equal(t, "PROMO1", result[0].Code)
+
+	result, total, err = repo.GetTable(ctx, 2, 0, model.PromoSortCapacity, false)
+	require.NoError(t, err)
+	assert.Equal(t, 3, total)
+	assert.Equal(t, []string{"PROMO2", "PROMO1"}, []string{result[0].Code, result[1].Code})
+
+	result, total, err = repo.GetTable(ctx, 2, 2, model.PromoSortCapacity, false)
+	require.NoError(t, err)
+	assert.Equal(t, 3, total)
+	require.Len(t, result, 1)
+	assert.Equal(t, "PROMO3", result[0].Code)
+
+	result, _, err = repo.GetTable(ctx, 20, 0, model.PromoSortCode, true)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"PROMO3", "PROMO2", "PROMO1"}, []string{result[0].Code, result[1].Code, result[2].Code})
+
+	result, _, err = repo.GetTable(ctx, 20, 0, model.PromoSortSince, true)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"PROMO2", "PROMO3", "PROMO1"}, []string{result[0].Code, result[1].Code, result[2].Code})
 }
 
 func TestPromo_GetTable_Empty(t *testing.T) {
@@ -229,9 +254,10 @@ func TestPromo_GetTable_Empty(t *testing.T) {
 	repo := NewPromo(appEnv)
 
 	// Get table from empty DB
-	result, err := repo.GetTable(ctx)
+	result, total, err := repo.GetTable(ctx, 20, 0, model.PromoSortCapacity, false)
 	require.NoError(t, err)
 	assert.Empty(t, result)
+	assert.Zero(t, total)
 }
 
 func TestPromo_CreatePromo_Duplicate(t *testing.T) {
