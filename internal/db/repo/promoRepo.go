@@ -20,17 +20,17 @@ func NewPromo(appEnv *base.ApplicationEnv) *Promo {
 	return &Promo{appEnv: appEnv}
 }
 
-func (p *Promo) CreatePromo(ctx context.Context, promoCode model.PromoCode) error {
-	var db DBQuerier
-
+func (p *Promo) dbFromContext(ctx context.Context) DBQuerier {
 	if tx, ok := ctx.Value(TxKey{}).(pgx.Tx); ok {
-		db = tx
-	} else {
-		db = p.appEnv.Database
+		return tx
 	}
+	return p.appEnv.Database
+}
 
+func (p *Promo) CreatePromo(ctx context.Context, promoCode model.PromoCode) error {
 	const op = "Promo.CreatePromo"
 	log := slog.With("op", op)
+	db := p.dbFromContext(ctx)
 
 	query := `
 		INSERT INTO Promo_codes
@@ -57,6 +57,129 @@ func (p *Promo) CreatePromo(ctx context.Context, promoCode model.PromoCode) erro
 	}
 
 	return nil
+}
+
+func (p *Promo) UpdatePromo(ctx context.Context, promoCode model.PromoCode) (model.PromoCode, error) {
+	const op = "Promo.UpdatePromo"
+	log := slog.With("op", op)
+	db := p.dbFromContext(ctx)
+
+	query := `
+		UPDATE promo_codes
+		SET bonus_length = $2,
+			since = COALESCE($3, current_date),
+			until = $4,
+			capacity = $5
+		WHERE code = $1
+		RETURNING code, bonus_length, since, until, capacity
+	`
+
+	var updated model.PromoCode
+	err := db.QueryRow(
+		ctx,
+		query,
+		promoCode.Code,
+		promoCode.BonusLength,
+		promoCode.Since,
+		promoCode.Until,
+		promoCode.Capacity,
+	).Scan(
+		&updated.Code,
+		&updated.BonusLength,
+		&updated.Since,
+		&updated.Until,
+		&updated.Capacity,
+	)
+	if err != nil {
+		log.Error("failed to update promo code",
+			slog.Group("error",
+				slog.String("message", err.Error()),
+				slog.String("component", "Database.QueryRow"),
+				slog.String("promo_code", promoCode.Code)))
+		return model.PromoCode{}, err
+	}
+
+	return updated, nil
+}
+
+func (p *Promo) GetPromo(ctx context.Context, code string) (model.PromoCode, error) {
+	const op = "Promo.GetPromo"
+	log := slog.With("op", op)
+	db := p.dbFromContext(ctx)
+
+	query := `
+		SELECT code, bonus_length, since, until, capacity
+		FROM promo_codes
+		WHERE code = $1
+	`
+
+	var promo model.PromoCode
+	if err := db.QueryRow(ctx, query, code).Scan(
+		&promo.Code,
+		&promo.BonusLength,
+		&promo.Since,
+		&promo.Until,
+		&promo.Capacity,
+	); err != nil {
+		log.Error("failed to get promo code",
+			slog.Group("error",
+				slog.String("message", err.Error()),
+				slog.String("component", "Database.QueryRow"),
+				slog.String("promo_code", code)))
+		return model.PromoCode{}, err
+	}
+
+	return promo, nil
+}
+
+func (p *Promo) DeletePromo(ctx context.Context, code string) (model.PromoDeleteResult, int, error) {
+	const op = "Promo.DeletePromo"
+	log := slog.With("op", op)
+	db := p.dbFromContext(ctx)
+
+	query := `
+		WITH activation AS (
+			SELECT COUNT(*) AS count
+			FROM promo_code_activations
+			WHERE code = $1
+		),
+		updated AS (
+			UPDATE promo_codes
+			SET capacity = 0
+			WHERE code = $1 AND (SELECT count FROM activation) > 0
+			RETURNING code
+		),
+		deleted AS (
+			DELETE FROM promo_codes
+			WHERE code = $1 AND (SELECT count FROM activation) = 0
+			RETURNING code
+		)
+		SELECT EXISTS(SELECT 1 FROM updated),
+			EXISTS(SELECT 1 FROM deleted),
+			(SELECT count FROM activation);
+	`
+
+	var (
+		updated, deleted bool
+		activations      int
+	)
+	if err := db.QueryRow(ctx, query, code).Scan(&updated, &deleted, &activations); err != nil {
+		log.Error("failed to delete or disable promo code",
+			slog.Group("error",
+				slog.String("message", err.Error()),
+				slog.String("component", "Database.QueryRow"),
+				slog.String("promo_code", code)))
+		return "", 0, err
+	}
+
+	switch {
+	case updated:
+		return model.PromoDeleteResultDisabled, activations, nil
+	case deleted:
+		return model.PromoDeleteResultDeleted, 0, nil
+	default:
+		return "", 0, fmt.Errorf("%s, promo code not found: %s", op, code)
+	}
 }
 
 func (p *Promo) GetTable(ctx context.Context, codes ...string) ([]model.ResponseCode, error) {
@@ -114,8 +237,8 @@ func (p *Promo) GetTable(ctx context.Context, codes ...string) ([]model.Response
 	return promo, nil
 }
 
-func (p *Promo) GetPromoCode(ctx context.Context, codes ...string) ([]model.StatResponseCode, error) {
-	const op = "Promo.GetPromoCode"
+func (p *Promo) GetPromoStats(ctx context.Context, codes ...string) ([]model.StatResponseCode, error) {
+	const op = "Promo.GetPromoStats"
 	log := slog.With("op", op)
 
 	if len(codes) == 0 {

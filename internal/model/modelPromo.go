@@ -24,6 +24,13 @@ type PromoCode struct {
 	Capacity    int
 }
 
+type PromoDeleteResult string
+
+const (
+	PromoDeleteResultDeleted  PromoDeleteResult = "deleted"
+	PromoDeleteResultDisabled PromoDeleteResult = "disabled"
+)
+
 type ResponseCode struct {
 	Code        string
 	BonusLength int

@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -26,6 +27,10 @@ func (m *MockRestSaveService) CreatePromoWithAudit(ctx context.Context, modelToR
 }
 
 func TestOneTimePromoHandler_GeneratePromo(t *testing.T) {
+	now := time.Now().UTC()
+	since := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, 1)
+	until := since.AddDate(0, 0, 30)
+
 	type testCase struct {
 		name       string
 		method     string
@@ -93,14 +98,18 @@ func TestOneTimePromoHandler_GeneratePromo(t *testing.T) {
 		{
 			name:   "Success: Promo Created With Dates (RFC3339)",
 			method: http.MethodPost,
-			body:   `{"code": "DATED", "bonus_length": 5, "capacity": 10, "since": "2026-05-01T00:00:00Z", "until": "2026-06-01T00:00:00Z"}`,
+			body: fmt.Sprintf(
+				`{"code": "DATED", "bonus_length": 5, "capacity": 10, "since": %q, "until": %q}`,
+				since.Format(time.RFC3339),
+				until.Format(time.RFC3339),
+			),
 			setupMock: func(m *MockRestSaveService) {
 				m.On("CreatePromoWithAudit",
 					mock.Anything,
 					mock.MatchedBy(func(p model.PromoCode) bool {
 						return p.Code == "DATED" && p.BonusLength == 5 && p.Capacity == 10 &&
-							p.Since != nil && p.Since.Equal(time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)) &&
-							p.Until != nil && p.Until.Equal(time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC))
+							p.Since != nil && p.Since.Equal(since) &&
+							p.Until != nil && p.Until.Equal(until)
 					}),
 					mock.MatchedBy(func(a audit.Log) bool {
 						return a.Code == "DATED" && a.Action == "create" && a.By == "auto"
@@ -113,14 +122,18 @@ func TestOneTimePromoHandler_GeneratePromo(t *testing.T) {
 		{
 			name:   "Success: Promo Created With Dates (date-only string)",
 			method: http.MethodPost,
-			body:   `{"code": "DATEONLY", "bonus_length": 5, "capacity": 10, "since": "2026-05-01", "until": "2026-06-01"}`,
+			body: fmt.Sprintf(
+				`{"code": "DATEONLY", "bonus_length": 5, "capacity": 10, "since": %q, "until": %q}`,
+				since.Format(time.DateOnly),
+				until.Format(time.DateOnly),
+			),
 			setupMock: func(m *MockRestSaveService) {
 				m.On("CreatePromoWithAudit",
 					mock.Anything,
 					mock.MatchedBy(func(p model.PromoCode) bool {
 						return p.Code == "DATEONLY" && p.BonusLength == 5 && p.Capacity == 10 &&
-							p.Since != nil && p.Since.Equal(time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)) &&
-							p.Until != nil && p.Until.Equal(time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC))
+							p.Since != nil && p.Since.Equal(since) &&
+							p.Until != nil && p.Until.Equal(until)
 					}),
 					mock.MatchedBy(func(a audit.Log) bool {
 						return a.Code == "DATEONLY" && a.Action == "create" && a.By == "auto"

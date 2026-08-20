@@ -94,6 +94,23 @@ func TestFileStorage_Save(t *testing.T) {
 				require.Contains(t, string(content), `test\t\n\r`)
 			},
 		},
+		{
+			name: "write update changes",
+			input: Log{
+				Code:   "changed",
+				Action: "updated",
+				By:     "admin",
+				Changes: map[string]Change{
+					"capacity": {Old: "5", New: "0"},
+				},
+			},
+			validateFunc: func(t *testing.T, tmpDir string) {
+				logPath := filepath.Join(tmpDir, "audit-logs", "audit.json")
+				content, err := os.ReadFile(logPath)
+				require.NoError(t, err)
+				require.Contains(t, string(content), `"changes":{"capacity":{"old":"5","new":"0"}}`)
+			},
+		},
 	}
 
 	for _, tt := range tests {
