@@ -197,14 +197,15 @@ func initHandlers(
 	promoRepo := repo.NewPromo(appEnv)
 	service := promo.NewSaveService(promoRepo, auditStorage, tx)
 	promoHandler := handlers.NewPromoHandler(appEnv, stateStorage, service)
+	getHandler := handlers.NewGetHandler(appEnv, promoRepo)
 	messageHandlers = []base.MessageHandler{
-		handlers.NewGetHandler(appEnv, promoRepo),
+		getHandler,
 		promoHandler,
 		handlers.NewEditHandler(appEnv, stateStorage, service),
 		handlers.NewDeleteHandler(appEnv, service),
 		handlers.NewStats(appEnv, stateStorage, service),
 	}
-	callbackHandlers = []base.CallbackHandler{}
+	callbackHandlers = []base.CallbackHandler{getHandler.CallbackHandler()}
 	metrics.RegisterMessageHandlerCounters(messageHandlers...)
 	return
 }

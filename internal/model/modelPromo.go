@@ -37,6 +37,14 @@ type ResponseCode struct {
 	Capacity    int
 }
 
+type PromoSort string
+
+const (
+	PromoSortCode     PromoSort = "code"
+	PromoSortCapacity PromoSort = "capacity"
+	PromoSortSince    PromoSort = "since"
+)
+
 func (rc ResponseCode) String() string {
 	return fmt.Sprintf("%s — %d см (%d активаций)",
 		rc.Code, rc.BonusLength, rc.Capacity)

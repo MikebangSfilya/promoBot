@@ -15,7 +15,6 @@ type Repository interface {
 	UpdatePromo(ctx context.Context, promoCode model.PromoCode) (model.PromoCode, error)
 	GetPromo(ctx context.Context, code string) (model.PromoCode, error)
 	DeletePromo(ctx context.Context, code string) (model.PromoDeleteResult, int, error)
-	GetTable(ctx context.Context, codes ...string) ([]model.ResponseCode, error)
 	GetPromoStats(ctx context.Context, codes ...string) ([]model.StatResponseCode, error)
 }
 
@@ -89,10 +88,6 @@ func (s *Service) DeletePromoWithAudit(ctx context.Context, code string, auditLo
 		return nil
 	})
 	return result, activations, err
-}
-
-func (s *Service) GetTable(ctx context.Context, codes ...string) ([]model.ResponseCode, error) {
-	return s.repo.GetTable(ctx, codes...)
 }
 
 func (s *Service) GetStats(ctx context.Context, codes ...string) ([]model.StatResponseCode, error) {
