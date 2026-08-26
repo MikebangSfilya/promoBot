@@ -50,6 +50,11 @@ func init() {
 
 		"listPromoCodesTitle":       "Promo codes",
 		"listPromoCodesTotalEnding": "Total: %d promo codes",
+		"listPromoCodesPageEnding":  "Page %d/%d · Total: %d promo codes",
+		"listPromoSortCode":         "Code",
+		"listPromoSortCapacity":     "Remaining",
+		"listPromoSortSince":        "Start date",
+		"paginationExpired":         "This list has expired. Run /get again.",
 
 		"BadLength":   "Invalid length value",
 		"BadCapacity": "Invalid capacity value",
@@ -116,6 +121,11 @@ func init() {
 
 		"listPromoCodesTitle":       "Промокоды",
 		"listPromoCodesTotalEnding": "Всего: %d промокодов",
+		"listPromoCodesPageEnding":  "Страница %d/%d · Всего: %d промокодов",
+		"listPromoSortCode":         "Код",
+		"listPromoSortCapacity":     "Остаток",
+		"listPromoSortSince":        "Дата",
+		"paginationExpired":         "Список устарел. Вызовите /get ещё раз.",
 
 		"success": "👍🏼",
 		"failure": "Что-то пошло не так...",
