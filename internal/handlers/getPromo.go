@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -108,7 +109,7 @@ func (h *GetHandle) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 }
 
 func (h *GetHandle) renderPage(reqEnv *base.RequestEnv, page promoPageRequest, codes []string) (string, tgbotapi.InlineKeyboardMarkup, error) {
-	if page.page < 0 || page.page > int(^uint(0)>>1)/promoPageSize || !validPromoSort(page.sort) {
+	if page.page < 0 || page.page > math.MaxInt/promoPageSize || !validPromoSort(page.sort) {
 		return "", tgbotapi.InlineKeyboardMarkup{}, errInvalidPromoPage
 	}
 	offset := page.page * promoPageSize

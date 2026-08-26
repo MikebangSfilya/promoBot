@@ -241,6 +241,16 @@ func TestPromo_GetTable(t *testing.T) {
 	assert.Equal(t, []string{"PROMO2", "PROMO3", "PROMO1"}, []string{result[0].Code, result[1].Code, result[2].Code})
 }
 
+func TestPromo_GetTable_ZeroLimit(t *testing.T) {
+	result, total, err := NewPromo(&base.ApplicationEnv{}).GetTable(
+		context.Background(), 0, 0, model.PromoSortCapacity, false,
+	)
+
+	require.NoError(t, err)
+	assert.Empty(t, result)
+	assert.Zero(t, total)
+}
+
 func TestPromo_GetTable_Empty(t *testing.T) {
 	pool, cleanup := setupTestDB(t)
 	defer cleanup()

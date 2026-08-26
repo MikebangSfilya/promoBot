@@ -192,15 +192,14 @@ func (p *Promo) GetTable(
 	const op = "Promo.GetTable"
 	log := slog.With("op", op)
 
-	if limit <= 0 || offset < 0 {
+	if limit < 0 || offset < 0 {
 		return nil, 0, fmt.Errorf("%s, invalid page bounds", op)
 	}
+	if limit == 0 {
+		return nil, 0, nil
+	}
 
-	orderBy, ok := map[model.PromoSort]string{
-		model.PromoSortCode:     "code",
-		model.PromoSortCapacity: "capacity",
-		model.PromoSortSince:    "since",
-	}[sort]
+	orderBy, ok := promoSortColumn(sort)
 	if !ok {
 		return nil, 0, fmt.Errorf("%s, invalid sort: %s", op, sort)
 	}
@@ -214,30 +213,17 @@ func (p *Promo) GetTable(
 		return "%" + code + "%"
 	})
 
-	filter := `WHERE cardinality($1::text[]) = 0 OR code ILIKE ANY($1)`
-	var total int
-	if err := p.appEnv.Database.QueryRow(ctx, "SELECT count(*) FROM promo_codes "+filter, args).Scan(&total); err != nil {
-		log.Error("failed to count promo codes",
-			slog.Group("error",
-				slog.String("message", err.Error()),
-				slog.String("component", "Database.QueryRow")))
-		return nil, 0, err
-	}
-	if total == 0 {
-		return nil, 0, nil
-	}
-
 	stableOrder := ""
 	if sort != model.PromoSortCode {
 		stableOrder = ", code ASC"
 	}
 	query := fmt.Sprintf(`
-		SELECT code, bonus_length, capacity
+		SELECT code, bonus_length, capacity, count(*) OVER()
 		FROM promo_codes
-		%s
+		WHERE cardinality($1::text[]) = 0 OR code ILIKE ANY($1)
 		ORDER BY %s %s%s
 		LIMIT $2 OFFSET $3;
-	`, filter, orderBy, direction, stableOrder)
+	`, orderBy, direction, stableOrder)
 
 	rows, err := p.appEnv.Database.Query(ctx, query, args, limit, offset)
 	if err != nil {
@@ -249,7 +235,10 @@ func (p *Promo) GetTable(
 	}
 	defer rows.Close()
 
-	var promo []model.ResponseCode
+	var (
+		promo []model.ResponseCode
+		total int
+	)
 
 	for rows.Next() {
 		var prom model.ResponseCode
@@ -257,6 +246,7 @@ func (p *Promo) GetTable(
 			&prom.Code,
 			&prom.BonusLength,
 			&prom.Capacity,
+			&total,
 		)
 		if err != nil {
 			log.Error("failed to scan promo code row",
@@ -277,6 +267,19 @@ func (p *Promo) GetTable(
 	}
 
 	return promo, total, nil
+}
+
+func promoSortColumn(sort model.PromoSort) (string, bool) {
+	switch sort {
+	case model.PromoSortCode:
+		return "code", true
+	case model.PromoSortCapacity:
+		return "capacity", true
+	case model.PromoSortSince:
+		return "since", true
+	default:
+		return "", false
+	}
 }
 
 func (p *Promo) GetPromoStats(ctx context.Context, codes ...string) ([]model.StatResponseCode, error) {
