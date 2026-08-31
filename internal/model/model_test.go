@@ -36,7 +36,7 @@ func TestNewModel(t *testing.T) {
 			length:    50,
 			capacity:  10,
 			wantErr:   true,
-			err:       errEmptyCode,
+			err:       ErrEmptyCode,
 		},
 		{
 			name:      "zero_lenght",
@@ -44,7 +44,7 @@ func TestNewModel(t *testing.T) {
 			length:    0,
 			capacity:  10,
 			wantErr:   true,
-			err:       errZeroLength,
+			err:       ErrZeroLength,
 		},
 		{
 			name:      "zero_capacity",
@@ -52,7 +52,7 @@ func TestNewModel(t *testing.T) {
 			length:    50,
 			capacity:  0,
 			wantErr:   true,
-			err:       errZeroCap,
+			err:       ErrZeroCapacity,
 		},
 		{
 			name:      "minus_capacity",
@@ -60,7 +60,7 @@ func TestNewModel(t *testing.T) {
 			length:    0,
 			capacity:  -20,
 			wantErr:   true,
-			err:       errMinusCap,
+			err:       ErrMinusCapacity,
 		},
 		{
 			name:      "zero_capacity_and_lenght",
@@ -68,7 +68,7 @@ func TestNewModel(t *testing.T) {
 			length:    0,
 			capacity:  0,
 			wantErr:   true,
-			err:       errZeroCap,
+			err:       ErrZeroCapacity,
 		},
 		{
 			name:      "minus_lenght",
@@ -118,14 +118,14 @@ func TestNewPromoWithDates(t *testing.T) {
 	t.Run("until_in_the_past", func(t *testing.T) {
 		past := time.Now().Add(-24 * time.Hour)
 		_, err := NewPromo("TEST", 10, 5, nil, &past)
-		require.ErrorIs(t, err, errPastUntil)
+		require.ErrorIs(t, err, ErrPastUntil)
 	})
 
 	t.Run("until_before_since", func(t *testing.T) {
 		since := time.Now().Add(10 * 24 * time.Hour)
 		until := time.Now().Add(5 * 24 * time.Hour)
 		_, err := NewPromo("TEST", 10, 5, &since, &until)
-		require.ErrorIs(t, err, errUntilBeforeSince)
+		require.ErrorIs(t, err, ErrUntilBeforeSince)
 	})
 
 	t.Run("nil_dates_no_defaults", func(t *testing.T) {

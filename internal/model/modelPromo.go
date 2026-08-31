@@ -8,12 +8,12 @@ import (
 )
 
 var (
-	errEmptyCode        = errors.New("code is empty")
-	errMinusCap         = errors.New("the capacity cannot be less than zero")
-	errZeroLength       = errors.New("bonus length cant be zero")
-	errZeroCap          = errors.New("capacity cant be zero")
-	errUntilBeforeSince = errors.New("until date must be after since date")
-	errPastUntil        = errors.New("until date must not be in the past")
+	ErrEmptyCode        = errors.New("code is empty")
+	ErrMinusCapacity    = errors.New("the capacity cannot be less than zero")
+	ErrZeroLength       = errors.New("bonus length cant be zero")
+	ErrZeroCapacity     = errors.New("capacity cant be zero")
+	ErrUntilBeforeSince = errors.New("until date must be after since date")
+	ErrPastUntil        = errors.New("until date must not be in the past")
 )
 
 type PromoCode struct {
@@ -64,23 +64,23 @@ func (rc StatResponseCode) Format(format string) string {
 func NewPromo(code string, bonusLen, capacity int, since, until *time.Time) (PromoCode, error) {
 	trimCode := strings.TrimSpace(code)
 	if trimCode == "" {
-		return PromoCode{}, errEmptyCode
+		return PromoCode{}, ErrEmptyCode
 	}
 	switch {
 	case capacity < 0:
-		return PromoCode{}, errMinusCap
+		return PromoCode{}, ErrMinusCapacity
 	case capacity == 0:
-		return PromoCode{}, errZeroCap
+		return PromoCode{}, ErrZeroCapacity
 	}
 	if bonusLen == 0 {
-		return PromoCode{}, errZeroLength
+		return PromoCode{}, ErrZeroLength
 	}
 
 	if until != nil && until.Before(time.Now()) {
-		return PromoCode{}, errPastUntil
+		return PromoCode{}, ErrPastUntil
 	}
 	if since != nil && until != nil && until.Before(*since) {
-		return PromoCode{}, errUntilBeforeSince
+		return PromoCode{}, ErrUntilBeforeSince
 	}
 
 	return PromoCode{

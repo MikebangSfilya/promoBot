@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	CodesField  = "code"
-	failure     = "failure"
-	invalidArgs = "invalid"
+	CodesField         = "code"
+	failure            = "failure"
+	statsCodesRequired = "statsCodesRequired"
 )
 
 type StatsGetter interface {
@@ -100,7 +100,7 @@ func (h *Stats) processAndReplyPromoList(reqEnv *base.RequestEnv, msg *tgbotapi.
 
 	argSlice := parseArguments(input)
 	if len(argSlice) == 0 {
-		reply(invalidArgs)
+		reply(statsCodesRequired)
 		return
 	}
 
