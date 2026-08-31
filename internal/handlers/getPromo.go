@@ -26,6 +26,8 @@ const (
 	listPromoSortCode         = "listPromoSortCode"
 	listPromoSortCapacity     = "listPromoSortCapacity"
 	listPromoSortSince        = "listPromoSortSince"
+	responseCodeFormat        = "responseCodeFormat"
+	statResponseCodeFormat    = "statResponseCodeFormat"
 	paginationExpired         = "paginationExpired"
 	getCallbackPrefix         = "get:"
 	promoPageSize             = 20
@@ -133,7 +135,8 @@ func (h *GetHandle) renderPage(reqEnv *base.RequestEnv, page promoPageRequest, c
 		reqEnv.Lang.Tr(listPromoCodesTitle),
 		footer,
 		items,
-		offset)
+		offset,
+		func(item model.ResponseCode) string { return item.Format(reqEnv.Lang.Tr(responseCodeFormat)) })
 
 	return list, paginationKeyboard(reqEnv, page, pages), nil
 }

@@ -45,9 +45,8 @@ const (
 	PromoSortSince    PromoSort = "since"
 )
 
-func (rc ResponseCode) String() string {
-	return fmt.Sprintf("%s — %d см (%d активаций)",
-		rc.Code, rc.BonusLength, rc.Capacity)
+func (rc ResponseCode) Format(format string) string {
+	return fmt.Sprintf(format, rc.Code, rc.BonusLength, rc.Capacity)
 }
 
 type StatResponseCode struct {
@@ -58,9 +57,8 @@ type StatResponseCode struct {
 	Capacity        int
 }
 
-func (rc StatResponseCode) String() string {
-	return fmt.Sprintf("Промокод: %s — %d см. Осталось использований: %d, (Изначальное кол-во использований: %d, активаций: %d)",
-		rc.Code, rc.BonusLength, rc.Capacity, rc.InitialCapacity, rc.Activations)
+func (rc StatResponseCode) Format(format string) string {
+	return fmt.Sprintf(format, rc.Code, rc.BonusLength, rc.Capacity, rc.InitialCapacity, rc.Activations)
 }
 
 func NewPromo(code string, bonusLen, capacity int, since, until *time.Time) (PromoCode, error) {
