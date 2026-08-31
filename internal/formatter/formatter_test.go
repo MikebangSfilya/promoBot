@@ -14,7 +14,9 @@ func TestFormatPage(t *testing.T) {
 		{Code: "TWO", BonusLength: 3, Capacity: 4},
 	}
 
-	page := FormatPage("Promo codes", "Page 2/3 · Total: 42", items, 20)
+	page := FormatPage("Promo codes", "Page 2/3 · Total: 42", items, 20, func(item model.ResponseCode) string {
+		return item.Code
+	})
 
 	assert.True(t, strings.HasPrefix(page, "Promo codes: \n\n21. ONE"))
 	assert.Contains(t, page, "\n22. TWO")

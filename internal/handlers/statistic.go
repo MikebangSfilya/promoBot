@@ -127,7 +127,8 @@ func (h *Stats) processAndReplyPromoList(reqEnv *base.RequestEnv, msg *tgbotapi.
 	list := formatter.FormatList(
 		reqEnv.Lang.Tr(listPromoCodesTitle),
 		reqEnv.Lang.Tr(listPromoCodesTotalEnding),
-		codes)
+		codes,
+		func(item model.StatResponseCode) string { return item.Format(reqEnv.Lang.Tr(statResponseCodeFormat)) })
 
 	reply(list)
 }

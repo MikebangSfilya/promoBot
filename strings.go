@@ -54,6 +54,8 @@ func init() {
 		"listPromoSortCode":         "Code",
 		"listPromoSortCapacity":     "Remaining",
 		"listPromoSortSince":        "Start date",
+		"responseCodeFormat":        "%s — %d cm (%d activations)",
+		"statResponseCodeFormat":    "Promo code: %s — %d cm. Remaining activations: %d (Initial activations: %d, activations: %d)",
 		"paginationExpired":         "This list has expired. Run /get again.",
 
 		"BadLength":   "Invalid length value",
@@ -125,6 +127,8 @@ func init() {
 		"listPromoSortCode":         "Код",
 		"listPromoSortCapacity":     "Остаток",
 		"listPromoSortSince":        "Дата",
+		"responseCodeFormat":        "%s — %d см (%d активаций)",
+		"statResponseCodeFormat":    "Промокод: %s — %d см. Осталось использований: %d (Изначальное кол-во использований: %d, активаций: %d)",
 		"paginationExpired":         "Список устарел. Вызовите /get ещё раз.",
 
 		"success": "👍🏼",
