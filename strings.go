@@ -25,7 +25,7 @@ func init() {
 		"commands.promo.fields.until":       "Enter the end date (number of days, DD.MM.YYYY, or YYYY-MM-DD):",
 		"commands.promo.fields.code":        "Enter promo code(s) you want to view in a new message on one line, separated by space or comma",
 
-		"messages.promo.created_full": "Promo code successfully created! Promo code: %s. Length bonus: %s. Activations: %s. Valid: %s — %s",
+		"messages.promo.created_full": "Promo code successfully created! Promo code: %s. Length bonus: %s. Activations: %s. Valid: %s — %s. Link: %s",
 		"dateEndless":                 "endless",
 
 		"fieldPromoCreated":   "Promo code created: ",
@@ -116,7 +116,7 @@ func init() {
 		"errToDeletePromo":    "Ошибка при удалении промокода",
 		"errNoPermission":     "Доступ запрещен. Требуются права администратора",
 
-		"messages.promo.created_full": "Промокод успешно создан! Промокод: %s. Прибавка к длине: %s. Активаций: %s. Действует: %s — %s",
+		"messages.promo.created_full": "Промокод успешно создан! Промокод: %s. Прибавка к длине: %s. Активаций: %s. Действует: %s — %s. Ссылка: %s",
 		"dateEndless":                 "бессрочно",
 
 		"noPromo": "Нет промокодов в базе или не найдены по конкретному запросу",
