@@ -258,7 +258,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 			capacityExtract,
 			sinceStr,
 			untilStr,
-			promoDeepLink(promoCode),
+			promoDeepLink(modelToRepo.Code),
 		)
 		reply(message)
 
