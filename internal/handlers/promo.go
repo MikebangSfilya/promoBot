@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -26,6 +27,12 @@ const (
 	BadCapacity = "BadCapacity"
 	BadSince    = "BadSince"
 	BadUntil    = "BadUntil"
+
+	promoCodeRequired     = "promoCodeRequired"
+	promoLengthNonZero    = "promoLengthNonZero"
+	promoCapacityPositive = "promoCapacityPositive"
+	promoUntilNotPast     = "promoUntilNotPast"
+	promoUntilAfterSince  = "promoUntilAfterSince"
 
 	fieldPromo        = "promo"
 	fieldConfirmation = "confirmation"
@@ -221,7 +228,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 			slog.Group("error",
 				"message", err.Error(),
 				"promo_code", promoCode))
-		reply(errToCreatePromo)
+		reply(promoErrorKey(err, errToCreatePromo))
 		return
 	}
 
@@ -271,6 +278,23 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 
 func promoDeepLink(code string) string {
 	return "https://t.me/DickGrowerBot?start=promo-" + base64.RawURLEncoding.EncodeToString([]byte(code))
+}
+
+func promoErrorKey(err error, fallback string) string {
+	switch {
+	case errors.Is(err, model.ErrEmptyCode):
+		return promoCodeRequired
+	case errors.Is(err, model.ErrZeroLength):
+		return promoLengthNonZero
+	case errors.Is(err, model.ErrMinusCapacity), errors.Is(err, model.ErrZeroCapacity):
+		return promoCapacityPositive
+	case errors.Is(err, model.ErrPastUntil):
+		return promoUntilNotPast
+	case errors.Is(err, model.ErrUntilBeforeSince):
+		return promoUntilAfterSince
+	default:
+		return fallback
+	}
 }
 
 func extractPromoInfo(fields wizard.Fields, field string) string {

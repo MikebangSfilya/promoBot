@@ -180,7 +180,7 @@ func (h *EditHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fie
 			slog.Group("error",
 				"message", err.Error(),
 				"promo_code", promoCode))
-		reply(errToUpdatePromo)
+		reply(promoErrorKey(err, errToUpdatePromo))
 		return
 	}
 

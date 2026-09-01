@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/MikebangSfilya/promoBot/internal/model"
 	"github.com/kozalosev/goSadTgBot/wizard"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -71,6 +72,27 @@ func TestExtractPromoInfo(t *testing.T) {
 			}
 			testProm := extractPromoInfo(fields, tc.field)
 			require.Equal(t, tc.expected, testProm)
+		})
+	}
+}
+
+func TestPromoErrorKey(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{name: "empty code", err: model.ErrEmptyCode, want: promoCodeRequired},
+		{name: "zero length", err: model.ErrZeroLength, want: promoLengthNonZero},
+		{name: "zero capacity", err: model.ErrZeroCapacity, want: promoCapacityPositive},
+		{name: "past end date", err: model.ErrPastUntil, want: promoUntilNotPast},
+		{name: "end before start", err: model.ErrUntilBeforeSince, want: promoUntilAfterSince},
+		{name: "technical error", err: assert.AnError, want: errToCreatePromo},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, promoErrorKey(tt.err, errToCreatePromo))
 		})
 	}
 }

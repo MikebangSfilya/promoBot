@@ -18,6 +18,7 @@ const (
 	promoDeleted     = "promoDeleted"
 	promoDisabled    = "promoDisabled"
 	errToDeletePromo = "errToDeletePromo"
+	deleteUsage      = "deleteUsage"
 )
 
 type DeleteService interface {
@@ -66,7 +67,7 @@ func (h *DeleteHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 
 	args := parseArguments(msg.CommandArguments())
 	if len(args) != 1 {
-		reply(invalidArgs)
+		reply(deleteUsage)
 		return
 	}
 
