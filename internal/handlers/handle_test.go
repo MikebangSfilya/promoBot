@@ -124,3 +124,10 @@ func TestParseDate(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+func TestPromoDeepLink(t *testing.T) {
+	assert.Equal(t,
+		"https://t.me/DickGrowerBot?start=promo-0L_RgNC-0LzQvi3QutC-0LQ",
+		promoDeepLink("промо-код"),
+	)
+}

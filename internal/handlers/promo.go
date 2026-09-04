@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -264,6 +265,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 			capacityExtract,
 			sinceStr,
 			untilStr,
+			promoDeepLink(modelToRepo.Code),
 		)
 		reply(message)
 
@@ -272,6 +274,10 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 	default:
 		reply(UnknowCommand)
 	}
+}
+
+func promoDeepLink(code string) string {
+	return "https://t.me/DickGrowerBot?start=promo-" + base64.RawURLEncoding.EncodeToString([]byte(code))
 }
 
 func promoErrorKey(err error, fallback string) string {
