@@ -531,3 +531,47 @@ func TestPromo_GetActivationStats(t *testing.T) {
 	assert.Equal(t, 0, none.ActivationsTotal)
 	assert.Equal(t, 7, none.InitialCapacity())
 }
+
+func TestPromo_GetPromoStats(t *testing.T) {
+	pool, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	repo := NewPromo(&base.ApplicationEnv{Database: pool, Ctx: ctx})
+
+	_, err := pool.Exec(ctx, `
+		INSERT INTO promo_codes (code, bonus_length, capacity)
+		VALUES ('USED', 10, 3),
+			   ('UNUSED', 20, 5);
+	`)
+	require.NoError(t, err)
+
+	_, err = pool.Exec(ctx, `
+		INSERT INTO promo_code_activations (uid, code, affected_chats)
+		VALUES (1, 'USED', 1),
+			   (2, 'USED', 1);
+	`)
+	require.NoError(t, err)
+
+	stats, err := repo.GetPromoStats(ctx, "USED", "UNUSED", "MISSING")
+	require.NoError(t, err)
+
+	byCode := lo.KeyBy(stats, func(s model.StatResponseCode) string { return s.Code })
+
+	// Only a code that does not exist is left out.
+	assert.Len(t, stats, 2)
+	assert.NotContains(t, byCode, "MISSING")
+
+	used := byCode["USED"]
+	assert.Equal(t, 2, used.Activations)
+	assert.Equal(t, 3, used.Capacity)
+	assert.Equal(t, 5, used.InitialCapacity)
+
+	// A code nobody has activated yet is still reported, with zero activations.
+	unused, found := byCode["UNUSED"]
+	require.True(t, found)
+	assert.Equal(t, 0, unused.Activations)
+	assert.Equal(t, 5, unused.Capacity)
+	assert.Equal(t, 5, unused.InitialCapacity)
+	assert.Equal(t, 20, unused.BonusLength)
+}

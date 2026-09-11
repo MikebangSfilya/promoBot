@@ -296,7 +296,7 @@ func (p *Promo) GetPromoStats(ctx context.Context, codes ...string) ([]model.Sta
 		   count(uid) AS activations,
 		   capacity + count(uid) AS initial_capacity
 		FROM promo_codes
-		JOIN promo_code_activations USING (code)
+		LEFT JOIN promo_code_activations USING (code)
 		WHERE code = any($1)
 		GROUP BY code, bonus_length, capacity;
 	`
