@@ -88,7 +88,7 @@ func TestOneTimePromoHandler_GeneratePromo(t *testing.T) {
 						return p.Code == "DB_FAIL" && p.BonusLength == 10 && p.Since == nil && p.Until == nil
 					}),
 					mock.MatchedBy(func(a audit.Log) bool {
-						return a.Code == "DB_FAIL" && a.Action == "create"
+						return a.Code == "DB_FAIL" && a.Action == model.ActionCreate
 					}),
 				).Return(errors.New("database connection lost"))
 			},
@@ -112,7 +112,7 @@ func TestOneTimePromoHandler_GeneratePromo(t *testing.T) {
 							p.Until != nil && p.Until.Equal(until)
 					}),
 					mock.MatchedBy(func(a audit.Log) bool {
-						return a.Code == "DATED" && a.Action == "create" && a.By == "auto"
+						return a.Code == "DATED" && a.Action == model.ActionCreate && a.By == restPromoAuthor
 					}),
 				).Return(nil)
 			},
@@ -136,7 +136,7 @@ func TestOneTimePromoHandler_GeneratePromo(t *testing.T) {
 							p.Until != nil && p.Until.Equal(until)
 					}),
 					mock.MatchedBy(func(a audit.Log) bool {
-						return a.Code == "DATEONLY" && a.Action == "create" && a.By == "auto"
+						return a.Code == "DATEONLY" && a.Action == model.ActionCreate && a.By == restPromoAuthor
 					}),
 				).Return(nil)
 			},
@@ -162,7 +162,7 @@ func TestOneTimePromoHandler_GeneratePromo(t *testing.T) {
 						return diff < time.Minute
 					}),
 					mock.MatchedBy(func(a audit.Log) bool {
-						return a.Code == "DAYS" && a.Action == "create" && a.By == "auto"
+						return a.Code == "DAYS" && a.Action == model.ActionCreate && a.By == restPromoAuthor
 					}),
 				).Return(nil)
 			},
@@ -188,7 +188,7 @@ func TestOneTimePromoHandler_GeneratePromo(t *testing.T) {
 						return diff < time.Minute
 					}),
 					mock.MatchedBy(func(a audit.Log) bool {
-						return a.Code == "DAYSSTR" && a.Action == "create" && a.By == "auto"
+						return a.Code == "DAYSSTR" && a.Action == model.ActionCreate && a.By == restPromoAuthor
 					}),
 				).Return(nil)
 			},
@@ -215,7 +215,7 @@ func TestOneTimePromoHandler_GeneratePromo(t *testing.T) {
 						return p.Code == "SUCCESS" && p.BonusLength == 5 && p.Capacity == 100 && p.Since == nil && p.Until == nil
 					}),
 					mock.MatchedBy(func(a audit.Log) bool {
-						return a.Code == "SUCCESS" && a.Action == "create" && a.By == "auto"
+						return a.Code == "SUCCESS" && a.Action == model.ActionCreate && a.By == restPromoAuthor
 					}),
 				).Return(nil)
 			},

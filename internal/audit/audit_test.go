@@ -200,8 +200,8 @@ func TestFileStorage_FindLogs(t *testing.T) {
 			Log{Code: "OLD", Action: actionCreate, By: "boss", At: now.Add(-30 * 24 * time.Hour)},
 			Log{Code: "NEW", Action: actionCreate, By: "boss", At: now.Add(-3 * 24 * time.Hour)},
 			Log{Code: "NEWER", Action: actionCreate, By: "auto", At: now.Add(-1 * 24 * time.Hour)},
-			Log{Code: "NEW", Action: "update", By: "boss", At: now.Add(-2 * 24 * time.Hour)},
-			Log{Code: "NEWER", Action: "delete", By: "boss", At: now.Add(-1 * time.Hour)},
+			Log{Code: "NEW", Action: actionUpdate, By: "boss", At: now.Add(-2 * 24 * time.Hour)},
+			Log{Code: "NEWER", Action: actionDelete, By: "boss", At: now.Add(-1 * time.Hour)},
 			Log{Code: "EDGE", Action: actionCreate, By: "boss", At: since},
 		)
 
@@ -240,13 +240,13 @@ func TestFileStorage_FindLogs(t *testing.T) {
 
 		saveAll(t, storage,
 			Log{Code: "A", Action: actionCreate, By: "boss", At: now},
-			Log{Code: "B", Action: "update", By: "boss", At: now},
-			Log{Code: "C", Action: "delete", By: "boss", At: now},
-			Log{Code: "D", Action: "update", By: "boss", At: now},
+			Log{Code: "B", Action: actionUpdate, By: "boss", At: now},
+			Log{Code: "C", Action: actionDelete, By: "boss", At: now},
+			Log{Code: "D", Action: actionUpdate, By: "boss", At: now},
 		)
 
-		assert.Equal(t, []string{"B", "D"}, codesOf(findLogs(t, storage, "update", since)))
-		assert.Equal(t, []string{"C"}, codesOf(findLogs(t, storage, "delete", since)))
+		assert.Equal(t, []string{"B", "D"}, codesOf(findLogs(t, storage, actionUpdate, since)))
+		assert.Equal(t, []string{"C"}, codesOf(findLogs(t, storage, actionDelete, since)))
 		assert.Equal(t, []string{"A"}, codesOf(findLogs(t, storage, actionCreate, since)))
 		assert.Empty(t, findLogs(t, storage, "nonexistent", since))
 	})
@@ -366,9 +366,13 @@ func findLogs(t *testing.T, storage *FileStorage, action string, since time.Time
 	return found
 }
 
-// actionCreate is an arbitrary action name: the storage matches it verbatim and
-// attaches no meaning to it, so the tests do not borrow a caller's vocabulary.
-const actionCreate = "create"
+// Arbitrary action names: the storage matches them verbatim and attaches no
+// meaning to them, so the tests do not borrow a caller's vocabulary.
+const (
+	actionCreate = "create"
+	actionUpdate = "update"
+	actionDelete = "delete"
+)
 
 // createdSince looks up that action, which most of these tests use as their example.
 func createdSince(t *testing.T, storage *FileStorage, since time.Time) []Log {
