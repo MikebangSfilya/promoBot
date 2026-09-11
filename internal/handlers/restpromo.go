@@ -97,7 +97,7 @@ func (h *OneTimePromoHandler) GeneratePromo() http.HandlerFunc {
 
 		auditLog := audit.Log{
 			Code:   req.Code,
-			Action: "create",
+			Action: model.ActionCreate,
 			By:     "auto",
 		}
 		err = h.SaveService.CreatePromoWithAudit(ctxTx, code, auditLog)

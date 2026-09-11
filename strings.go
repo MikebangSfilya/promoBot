@@ -75,6 +75,19 @@ func init() {
 
 		"invalid": "Invalid arguments",
 
+		"groupCommandsDisabled": "My commands work in direct messages only. Write to me privately and call /help.",
+
+		"reportTitle":                   "📊 Promo code report since %s",
+		"reportSectionCreated":          "🆕 Created",
+		"reportSectionActivated":        "✅ Activated",
+		"reportSectionNotActivated":     "💤 Never activated",
+		"reportSectionCount":            "Total: %d",
+		"reportEntryCreatedFormat":      "%s — by %s, %d cm, %d activations, created %s, valid: %s — %s",
+		"reportEntryActivatedFormat":    "%s — %d activations",
+		"reportEntryNotActivatedFormat": "%s",
+		"reportEmpty":                   "📊 No promo codes have been created since %s.",
+		"reportUnknownAuthor":           "unknown",
+
 		"user":   "user",
 		"author": "author",
 		"admin":  "admin",
@@ -154,6 +167,19 @@ func init() {
 		"promoUntilAfterSince":  "Дата окончания должна быть позже даты начала",
 		"statsCodesRequired":    "Укажите хотя бы один промокод",
 		"deleteUsage":           "Формат: /delete CODE",
+
+		"groupCommandsDisabled": "Мои команды работают только в личных сообщениях. Напишите мне в личку и вызовите /help.",
+
+		"reportTitle":                   "📊 Отчёт по промокодам с %s",
+		"reportSectionCreated":          "🆕 Созданы",
+		"reportSectionActivated":        "✅ Активированы",
+		"reportSectionNotActivated":     "💤 Ни разу не активированы",
+		"reportSectionCount":            "Всего: %d",
+		"reportEntryCreatedFormat":      "%s — автор %s, %d см, %d активаций, создан %s, действует: %s — %s",
+		"reportEntryActivatedFormat":    "%s — %d активаций",
+		"reportEntryNotActivatedFormat": "%s",
+		"reportEmpty":                   "📊 С %s не было создано ни одного промокода.",
+		"reportUnknownAuthor":           "неизвестен",
 
 		"user":   "обычный",
 		"author": "автор",

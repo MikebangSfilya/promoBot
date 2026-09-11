@@ -32,6 +32,10 @@ services:
       - WEBHOOK_PATH
       - USERS_CONFIG_FILE=/cfg/users.yaml
       - AUDIT_LOGS_DIR=/app/audit-logs
+      - ADMINS_CHAT_ID
+      - REPORT_CRON
+      - REPORT_PERIOD_WEEKS
+      - REPORT_LANG
     expose:
       - ${APP_PORT}
     volumes:

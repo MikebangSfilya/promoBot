@@ -21,7 +21,6 @@ type UpdateService interface {
 }
 
 type EditHandler struct {
-	base.CommandHandlerTrait
 	common.PrivateCommandTrait
 
 	appEnv        *base.ApplicationEnv
@@ -188,7 +187,7 @@ func (h *EditHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fie
 	case actionUpdate:
 		auditLog := audit.Log{
 			Code:   promoCode,
-			Action: "update",
+			Action: model.ActionUpdate,
 			By:     string(opts.UserName),
 		}
 		if err := h.updateService.UpdatePromoWithAudit(h.appEnv.Ctx, modelToRepo, auditLog); err != nil {

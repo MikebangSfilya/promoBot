@@ -24,6 +24,17 @@ type PromoCode struct {
 	Capacity    int
 }
 
+// Audit actions recorded for promo codes.
+//
+// The audit storage matches actions verbatim and knows nothing about them; the
+// vocabulary belongs to the domain, and these constants keep the handlers that
+// write them and the report that reads them from drifting apart.
+const (
+	ActionCreate = "create"
+	ActionUpdate = "update"
+	ActionDelete = "delete"
+)
+
 type PromoDeleteResult string
 
 const (
@@ -59,6 +70,36 @@ type StatResponseCode struct {
 
 func (rc StatResponseCode) Format(format string) string {
 	return fmt.Sprintf(format, rc.Code, rc.BonusLength, rc.Capacity, rc.InitialCapacity, rc.Activations)
+}
+
+// PromoActivationStat is what the database knows about a promo code:
+// ActivationsInWindow counts only the activations that happened within the
+// reported period, while ActivationsTotal counts them since the code was created.
+type PromoActivationStat struct {
+	Code                string
+	BonusLength         int
+	Capacity            int
+	Since               *time.Time
+	Until               *time.Time
+	ActivationsInWindow int
+	ActivationsTotal    int
+}
+
+// ReportEntry is a single promo code as it appears in the weekly activation
+// report. The database has no record of who created a code or when, so that
+// half comes from the audit log.
+type ReportEntry struct {
+	PromoActivationStat
+
+	CreatedBy string
+	CreatedAt time.Time
+}
+
+// InitialCapacity restores the number of activations the code was created with.
+// Every activation decrements the remaining capacity, so the sum of the two is
+// the original value.
+func (s PromoActivationStat) InitialCapacity() int {
+	return s.Capacity + s.ActivationsTotal
 }
 
 func NewPromo(code string, bonusLen, capacity int, since, until *time.Time) (PromoCode, error) {

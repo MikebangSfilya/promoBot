@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS Promo_Code_Activations (
     uid bigint NOT NULL, -- here I deleted the foreign key
     code varchar(16) REFERENCES Promo_Codes(code),
     affected_chats integer NOT NULL,
+    activated_at timestamptz,
 
     PRIMARY KEY (uid, code)
 );

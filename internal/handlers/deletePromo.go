@@ -26,7 +26,6 @@ type DeleteService interface {
 }
 
 type DeleteHandler struct {
-	base.CommandHandlerTrait
 	common.PrivateCommandTrait
 
 	appEnv        *base.ApplicationEnv
@@ -74,7 +73,7 @@ func (h *DeleteHandler) Handle(reqEnv *base.RequestEnv, msg *tgbotapi.Message) {
 	code := args[0]
 	auditLog := audit.Log{
 		Code:   code,
-		Action: "delete",
+		Action: model.ActionDelete,
 		By:     string(opts.UserName),
 	}
 	result, activations, err := h.deleteService.DeletePromoWithAudit(h.appEnv.Ctx, code, auditLog)
