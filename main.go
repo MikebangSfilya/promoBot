@@ -242,7 +242,7 @@ func startReportScheduler(
 		os.Exit(1)
 	}
 	if reportCfg == nil {
-		log.Warn("the weekly activation report is disabled because the admins chat is not configured",
+		log.Warn("the weekly reports are disabled because the admins chat is not configured",
 			slog.String("variable", cfg.EnvAdminsChatID))
 		return
 	}

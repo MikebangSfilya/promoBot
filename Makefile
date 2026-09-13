@@ -144,6 +144,27 @@ endif
 dump:
 	$(COMPOSE) exec postgresql pg_dump -U $(POSTGRES_USER) $(POSTGRES_DB) > dump.sql
 
+# Activates a promo code on behalf of a user, the way DickGrowerBot does: the
+# remaining capacity drops by one and the activation is stamped with the moment
+# it happened. Both halves matter to the reports — the timestamp decides whether
+# an activation counts as recent, and the capacity is how the initial one is
+# worked out. Useful for testing, since this bot never writes activations itself.
+activate:
+ifeq ($(strip $(CODE)),)
+	@echo Usage: make activate CODE=... UID=...
+	@exit 1
+endif
+ifeq ($(strip $(UID)),)
+	@echo Usage: make activate CODE=... UID=...
+	@exit 1
+endif
+	$(COMPOSE) exec postgresql psql -U $(POSTGRES_USER) $(POSTGRES_DB) -v ON_ERROR_STOP=1 \
+		-c "BEGIN; \
+		    UPDATE Promo_Codes SET capacity = capacity - 1 WHERE code = '$(CODE)' AND capacity > 0; \
+		    INSERT INTO Promo_Code_Activations (uid, code, affected_chats, activated_at) \
+		    VALUES ($(UID), '$(CODE)', 1, current_timestamp); \
+		    COMMIT;"
+
 # Workflows
 dev: up logs-bot
 
@@ -158,5 +179,5 @@ lint:
 .PHONY: build run deps test clean \
         compose-build compose-build-nocache up down downfull logs logs-bot \
         restart clean-volumes ps \
-        db tables databases query dump \
+        db tables databases query dump activate \
         dev deploy reset lint test-short

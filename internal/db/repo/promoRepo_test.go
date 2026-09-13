@@ -3,6 +3,8 @@ package repo
 import (
 	"context"
 	"os"
+	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -40,11 +42,22 @@ func setupTestDB(t *testing.T) (*pgxpool.Pool, func()) {
 	pool, err := pgxpool.New(ctx, connStr)
 	require.NoError(t, err)
 
-	// Apply migrations from the actual migration file
-	migration, err := os.ReadFile("../../../db/migrations/000001_create_tables.up.sql")
+	// Apply every migration from the actual files, so the test schema keeps up
+	// as new ones are added rather than pinning one by name.
+	migrations, err := filepath.Glob("../../../db/migrations/*.up.sql")
 	require.NoError(t, err)
-	_, err = pool.Exec(ctx, string(migration))
-	require.NoError(t, err)
+	require.NotEmpty(t, migrations)
+
+	// Glob's ordering is not part of its contract, and 000002 alters what 000001
+	// creates, so the order is imposed here rather than assumed.
+	slices.Sort(migrations)
+
+	for _, path := range migrations {
+		migration, err := os.ReadFile(path)
+		require.NoError(t, err, path)
+		_, err = pool.Exec(ctx, string(migration))
+		require.NoError(t, err, path)
+	}
 
 	cleanup := func() {
 		pool.Close()
