@@ -19,10 +19,12 @@ const (
 
 	// Weekly activation report
 
-	EnvAdminsChatID     = "ADMINS_CHAT_ID"
-	EnvReportCron       = "REPORT_CRON"
-	EnvReportPeriodWeek = "REPORT_PERIOD_WEEKS"
-	EnvReportLang       = "REPORT_LANG"
+	EnvAdminsChatID            = "ADMINS_CHAT_ID"
+	EnvReportCron              = "REPORT_CRON"
+	EnvReportPeriodWeek        = "REPORT_PERIOD_WEEKS"
+	EnvReportEventsPeriodWeeks = "REPORT_EVENTS_PERIOD_WEEKS"
+	EnvReportMaxPages          = "REPORT_MAX_PAGES"
+	EnvReportLang              = "REPORT_LANG"
 
 	// WebHook related
 
@@ -52,6 +54,16 @@ const (
 	DefaultReportCron = "0 10 * * 6"
 	// DefaultReportPeriodWeeks is how far back the report looks by default.
 	DefaultReportPeriodWeeks = 2
+	// DefaultReportEventsPeriodWeeks is how far back the events report looks by
+	// default. Unlike the activation window it does not overlap: every event has
+	// one timestamp, so a wider window would only repeat events between reports.
+	DefaultReportEventsPeriodWeeks = 1
+	// DefaultReportMaxPages caps how many messages one report may be split into,
+	// so that a busy week cannot flood the admins chat.
+	DefaultReportMaxPages = 3
+	// MaxReportPagesAllowed is the largest cap that may be configured. Keeping it
+	// to two digits also bounds the width of the "(page N)" suffix.
+	MaxReportPagesAllowed = 99
 	// MaxReportPeriodWeeks bounds REPORT_PERIOD_WEEKS. The window is turned
 	// into a time.Duration, which wraps to a negative value past ~15250 weeks,
 	// and a negative window would put the report's start date in the future and

@@ -42,6 +42,8 @@ func TestNewReportConfig(t *testing.T) {
 		assert.Equal(t, DefaultReportCron, cfg.Cron)
 		assert.Equal(t, "ru", cfg.Lang)
 		assert.Equal(t, time.Duration(DefaultReportPeriodWeeks)*week, cfg.Period)
+		assert.Equal(t, time.Duration(DefaultReportEventsPeriodWeeks)*week, cfg.EventsPeriod)
+		assert.Equal(t, DefaultReportMaxPages, cfg.MaxPages)
 	})
 
 	t.Run("reads every setting", func(t *testing.T) {
@@ -128,5 +130,103 @@ func TestNewReportConfig(t *testing.T) {
 		require.NotNil(t, cfg)
 		assert.Positive(t, cfg.Period)
 		assert.Equal(t, time.Duration(MaxReportPeriodWeeks)*week, cfg.Period)
+	})
+
+	t.Run("reads the events period", func(t *testing.T) {
+		t.Setenv(EnvAdminsChatID, "42")
+		t.Setenv(EnvReportEventsPeriodWeeks, "3")
+
+		cfg, err := NewReportConfig(testLanguages, "ru")
+
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		assert.Equal(t, 21*24*time.Hour, cfg.EventsPeriod)
+	})
+
+	t.Run("ignores whitespace around the events period", func(t *testing.T) {
+		t.Setenv(EnvAdminsChatID, "42")
+		t.Setenv(EnvReportEventsPeriodWeeks, " 2 ")
+
+		cfg, err := NewReportConfig(testLanguages, "ru")
+
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		assert.Equal(t, 14*24*time.Hour, cfg.EventsPeriod)
+	})
+
+	t.Run("rejects an events period outside the supported range", func(t *testing.T) {
+		t.Setenv(EnvAdminsChatID, "42")
+
+		for _, value := range []string{"0", "-1", "not-a-number", "15251"} {
+			t.Setenv(EnvReportEventsPeriodWeeks, value)
+
+			_, err := NewReportConfig(testLanguages, "ru")
+
+			require.Error(t, err, "value %q", value)
+			assert.Contains(t, err.Error(), EnvReportEventsPeriodWeeks)
+		}
+	})
+
+	// The two windows are independent: the events one must not overlap, while
+	// the activation one deliberately does.
+	t.Run("keeps the two periods apart", func(t *testing.T) {
+		t.Setenv(EnvAdminsChatID, "42")
+		t.Setenv(EnvReportPeriodWeek, "4")
+		t.Setenv(EnvReportEventsPeriodWeeks, "1")
+
+		cfg, err := NewReportConfig(testLanguages, "ru")
+
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		assert.Equal(t, 28*24*time.Hour, cfg.Period)
+		assert.Equal(t, 7*24*time.Hour, cfg.EventsPeriod)
+	})
+
+	t.Run("reads the page cap", func(t *testing.T) {
+		t.Setenv(EnvAdminsChatID, "42")
+		t.Setenv(EnvReportMaxPages, "7")
+
+		cfg, err := NewReportConfig(testLanguages, "ru")
+
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		assert.Equal(t, 7, cfg.MaxPages)
+	})
+
+	t.Run("ignores whitespace around the page cap", func(t *testing.T) {
+		t.Setenv(EnvAdminsChatID, "42")
+		t.Setenv(EnvReportMaxPages, "  5 ")
+
+		cfg, err := NewReportConfig(testLanguages, "ru")
+
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		assert.Equal(t, 5, cfg.MaxPages)
+	})
+
+	// Zero pages would mean no report at all, and an unbounded cap would bring
+	// back the flooding the setting exists to prevent.
+	t.Run("rejects a page cap outside the supported range", func(t *testing.T) {
+		t.Setenv(EnvAdminsChatID, "42")
+
+		for _, value := range []string{"0", "-1", "not-a-number", "100"} {
+			t.Setenv(EnvReportMaxPages, value)
+
+			_, err := NewReportConfig(testLanguages, "ru")
+
+			require.Error(t, err, "value %q", value)
+			assert.Contains(t, err.Error(), EnvReportMaxPages)
+		}
+	})
+
+	t.Run("accepts the largest allowed page cap", func(t *testing.T) {
+		t.Setenv(EnvAdminsChatID, "42")
+		t.Setenv(EnvReportMaxPages, strconv.Itoa(MaxReportPagesAllowed))
+
+		cfg, err := NewReportConfig(testLanguages, "ru")
+
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		assert.Equal(t, MaxReportPagesAllowed, cfg.MaxPages)
 	})
 }

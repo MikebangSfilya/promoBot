@@ -74,3 +74,14 @@ between restarts. Activation timestamps come from the `activated_at` column of
 this bot only reads it, and mirrors the column in its own migration so that a database
 created from scratch here matches the shared schema.
 
+Right after that, a second message lists **who changed the promo codes** during the last
+`REPORT_EVENTS_PERIOD_WEEKS` weeks, grouped by person: what each of them created, updated
+or deleted, and which fields an update changed. That window should match the delay between
+the reports — unlike the activation one it must not overlap, or the same events would show
+up in every report.
+
+A report too long for a single Telegram message is split into pages, each repeating the
+title with its page number. At most `REPORT_MAX_PAGES` messages are sent per report
+(3 by default), so a busy week cannot flood the chat; whatever does not fit is left
+out, and the last page says how many pages were dropped.
+

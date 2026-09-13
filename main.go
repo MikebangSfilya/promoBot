@@ -247,23 +247,19 @@ func startReportScheduler(
 		return
 	}
 
-	reporter := report.New(
-		promoRepo,
-		auditStorage,
-		appEnv.Bot,
-		reportCfg.ChatID,
-		locpool.GetContext(reportCfg.Lang),
-		reportCfg.Period,
-	)
+	lang := locpool.GetContext(reportCfg.Lang)
+	activation := report.NewActivationReport(promoRepo, auditStorage, lang, reportCfg.Period, reportCfg.MaxPages)
+	events := report.NewEventsReport(auditStorage, lang, reportCfg.EventsPeriod, reportCfg.MaxPages)
 
 	// The schedule is parsed before detaching, so a typo in the cron expression
-	// stops the bot right away rather than silently producing no reports.
-	scheduler, err := reporter.Schedule(reportCfg.Cron)
+	// stops the bot right away rather than silently producing no reports. The
+	// reports are sent in the order given, each as its own message.
+	scheduler, err := report.Schedule(reportCfg.Cron, appEnv.Bot, reportCfg.ChatID, activation, events)
 	if err != nil {
-		log.Error("failed to schedule the weekly activation report",
+		log.Error("failed to schedule the weekly reports",
 			slog.Group("error",
 				slog.String("message", err.Error()),
-				slog.String("component", "Reporter.Schedule")))
+				slog.String("component", "report.Schedule")))
 		os.Exit(1)
 	}
 

@@ -35,6 +35,8 @@ services:
       - ADMINS_CHAT_ID
       - REPORT_CRON
       - REPORT_PERIOD_WEEKS
+      - REPORT_EVENTS_PERIOD_WEEKS
+      - REPORT_MAX_PAGES
       - REPORT_LANG
     expose:
       - ${APP_PORT}

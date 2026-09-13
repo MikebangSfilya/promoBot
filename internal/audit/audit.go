@@ -109,14 +109,15 @@ func (fs *FileStorage) Close() error {
 // of thousands of them, far more than any plausible reporting window.
 const defaultMaxTailBytes int64 = 4 << 20
 
-// FindLogs returns the records of the given action written at or after the
-// given moment, oldest first.
+// FindLogs returns the records written at or after the given moment, oldest
+// first, restricted to the given actions.
 //
-// The action is matched verbatim, so the storage stays agnostic of the
+// With no actions every record is returned; with several, a record matching any
+// of them. Actions are matched verbatim, so the storage stays agnostic of the
 // vocabulary its callers use. Records are appended as one JSON object per line;
 // a line that fails to parse is skipped with a warning rather than failing the
 // whole read.
-func (fs *FileStorage) FindLogs(action string, since time.Time) ([]Log, error) {
+func (fs *FileStorage) FindLogs(since time.Time, actions ...string) ([]Log, error) {
 	const op = "audit.FileStorage.FindLogs"
 	log := slog.With("op", op)
 
@@ -177,7 +178,7 @@ func (fs *FileStorage) FindLogs(action string, since time.Time) ([]Log, error) {
 		if oldest.IsZero() || entry.At.Before(oldest) {
 			oldest = entry.At
 		}
-		if entry.Action == action && !entry.At.Before(since) {
+		if matchesAction(actions, entry.Action) && !entry.At.Before(since) {
 			found = append(found, entry)
 		}
 	}
@@ -200,4 +201,8 @@ func (fs *FileStorage) FindLogs(action string, since time.Time) ([]Log, error) {
 	})
 
 	return found, nil
+}
+
+func matchesAction(actions []string, action string) bool {
+	return len(actions) == 0 || slices.Contains(actions, action)
 }

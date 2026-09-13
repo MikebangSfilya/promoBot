@@ -3,14 +3,14 @@ package report
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/MikebangSfilya/promoBot/internal/audit"
 	"github.com/MikebangSfilya/promoBot/internal/model"
 
-	tgbotapi "github.com/OvyFlash/telegram-bot-api"
-	"github.com/kozalosev/goSadTgBot/base"
 	"github.com/loctools/go-l10n/loc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,17 +44,17 @@ func (s *reporterStub) GetActivationStats(_ context.Context, since time.Time, co
 
 // creationsStub stands in for the audit log.
 type creationsStub struct {
-	logs   []audit.Log
-	err    error
-	since  time.Time
-	action string
-	calls  int
+	logs    []audit.Log
+	err     error
+	since   time.Time
+	actions []string
+	calls   int
 }
 
-func (s *creationsStub) FindLogs(action string, since time.Time) ([]audit.Log, error) {
+func (s *creationsStub) FindLogs(since time.Time, actions ...string) ([]audit.Log, error) {
 	s.calls++
 	s.since = since
-	s.action = action
+	s.actions = actions
 	return s.logs, s.err
 }
 
@@ -75,17 +75,47 @@ func testLang() *loc.Context {
 		reportEntryNotActivated:   "%s",
 		reportEmpty:               "Nothing since %s",
 		reportUnknownAuthor:       "unknown",
+		reportPageSuffix:          "%s (page %d)",
+		reportDateLayout:          "2006-01-02",
+		reportTruncated:           "... %d more page(s) left out",
 		dateEndless:               "endless",
+
+		eventsReportTitle:        "Changes since %s",
+		eventsReportEmpty:        "No changes since %s",
+		eventsReportAuthor:       "@%s",
+		eventsReportEntry:        "%s %s %s",
+		eventsReportChanges:      ": %s",
+		eventsReportChange:       "%s %s -> %s",
+		eventsTimeLayout:         "2006-01-02 15:04",
+		eventsActionCreate:       "created",
+		eventsActionUpdate:       "updated",
+		eventsActionDelete:       "deleted",
+		"eventsFieldBonusLength": "length",
+		"eventsFieldSince":       "start",
+		"eventsFieldUntil":       "end",
+		"eventsFieldCapacity":    "activations",
 	}
 	return pool.GetContext("en")
 }
 
-func newTestReporter(repo PromoReporter, bot base.ExtendedBotAPI) *Reporter {
-	return newTestReporterWith(repo, &creationsStub{}, bot)
+// testMaxPages is deliberately larger than any report these tests build, so
+// that only the pagination tests deal with the cap.
+const testMaxPages = 20
+
+func newTestActivationReport(repo PromoReporter, logs LogFinder) *ActivationReport {
+	return NewActivationReport(repo, logs, testLang(), 14*24*time.Hour, testMaxPages)
 }
 
-func newTestReporterWith(repo PromoReporter, created LogFinder, bot base.ExtendedBotAPI) *Reporter {
-	return New(repo, created, bot, testChatID, testLang(), 14*24*time.Hour)
+// buildPage renders a report and requires it to fit in a single message, which
+// is what every test here expects. Pagination is covered on its own.
+func buildPage(t *testing.T, r Report, now time.Time) string {
+	t.Helper()
+
+	pages, err := r.Build(context.Background(), now)
+	require.NoError(t, err)
+	require.Len(t, pages, 1)
+
+	return pages[0]
 }
 
 func stat(code string, inWindow, total int) model.PromoActivationStat {
@@ -101,7 +131,7 @@ func stat(code string, inWindow, total int) model.PromoActivationStat {
 	}
 }
 
-func TestReporter_Build(t *testing.T) {
+func TestActivationReport_Build(t *testing.T) {
 	tests := []struct {
 		name        string
 		creations   []audit.Log
@@ -169,17 +199,14 @@ func TestReporter_Build(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &reporterStub{stats: tt.stats}
 			created := &creationsStub{logs: tt.creations}
-			text, err := newTestReporterWith(repo, created, &base.FakeBotAPI{}).
-				Build(context.Background(), testNow)
-
-			require.NoError(t, err)
+			text := buildPage(t, newTestActivationReport(repo, created), testNow)
 
 			// 14 days before testNow.
 			window := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
 			assert.Equal(t, 1, created.calls)
 			assert.Equal(t, window, created.since)
 			// The report is about created promo codes, nothing else.
-			assert.Equal(t, model.ActionCreate, created.action)
+			assert.Equal(t, []string{model.ActionCreate}, created.actions)
 			if len(tt.creations) > 0 {
 				assert.Equal(t, 1, repo.calls)
 				assert.Equal(t, window, repo.since)
@@ -199,80 +226,159 @@ func TestReporter_Build(t *testing.T) {
 }
 
 // The same code created twice keeps the most recent author and date.
-func TestReporter_BuildLatestCreationWins(t *testing.T) {
+func TestActivationReport_BuildLatestCreationWins(t *testing.T) {
 	first := creation("AAA", "first")
 	second := creation("AAA", "second")
 	second.At = testCrtd.Add(24 * time.Hour)
 
 	repo := &reporterStub{stats: []model.PromoActivationStat{stat("AAA", 0, 0)}}
-	text, err := newTestReporterWith(repo, &creationsStub{logs: []audit.Log{first, second}}, &base.FakeBotAPI{}).
-		Build(context.Background(), testNow)
+	text := buildPage(t,
+		newTestActivationReport(repo, &creationsStub{logs: []audit.Log{first, second}}), testNow)
 
-	require.NoError(t, err)
 	assert.Equal(t, []string{"AAA"}, repo.codes)
 	assert.Contains(t, text, "AAA by second, 10 cm, 5 activations, created 2026-06-11")
 	assert.NotContains(t, text, "by first")
 }
 
-func TestReporter_BuildAuditErrorIsReported(t *testing.T) {
-	_, err := newTestReporterWith(
-		&reporterStub{}, &creationsStub{err: errors.New("audit boom")}, &base.FakeBotAPI{},
-	).Build(context.Background(), testNow)
+func TestActivationReport_BuildAuditErrorIsReported(t *testing.T) {
+	_, err := newTestActivationReport(&reporterStub{}, &creationsStub{err: errors.New("audit boom")}).
+		Build(context.Background(), testNow)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "audit boom")
 }
 
-func TestReporter_BuildEndlessPromoAndUnknownAuthor(t *testing.T) {
+func TestActivationReport_BuildEndlessPromoAndUnknownAuthor(t *testing.T) {
 	endless := stat("AAA", 0, 0)
 	endless.Until = nil
 
-	text, err := newTestReporterWith(
+	text := buildPage(t, newTestActivationReport(
 		&reporterStub{stats: []model.PromoActivationStat{endless}},
 		&creationsStub{logs: []audit.Log{creation("AAA", "")}},
-		&base.FakeBotAPI{},
-	).Build(context.Background(), testNow)
+	), testNow)
 
-	require.NoError(t, err)
 	assert.Contains(t, text, "AAA by unknown, 10 cm, 5 activations, created 2026-06-10, valid 2026-06-10 - endless")
 }
 
-func TestReporter_BuildRepositoryError(t *testing.T) {
+func TestActivationReport_BuildRepositoryError(t *testing.T) {
 	repo := &reporterStub{err: errors.New("boom")}
 
-	_, err := newTestReporterWith(repo, &creationsStub{logs: []audit.Log{creation("AAA", "boss")}}, &base.FakeBotAPI{}).
+	_, err := newTestActivationReport(repo, &creationsStub{logs: []audit.Log{creation("AAA", "boss")}}).
 		Build(context.Background(), testNow)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "boom")
 }
 
-func TestReporter_Send(t *testing.T) {
-	bot := &base.FakeBotAPI{}
-	repo := &reporterStub{stats: []model.PromoActivationStat{stat("AAA", 1, 1)}}
-	created := &creationsStub{logs: []audit.Log{creation("AAA", "boss")}}
+// formatDate is shared by both reports, so the activation one is pinned in a
+// non-English locale too.
+func TestActivationReport_BuildLocalizedDates(t *testing.T) {
+	pool := loc.NewPool("ru")
+	pool.Resources["ru"] = map[string]string{
+		reportTitle:               "Отчёт с %s",
+		reportSectionCreated:      "Созданы",
+		reportSectionActivated:    "Активированы",
+		reportSectionNotActivated: "Не активированы",
+		reportSectionCount:        "Всего: %d",
+		reportEntryCreated:        "%s от %s, %d см, %d активаций, создан %s, действует %s - %s",
+		reportEntryActivated:      "%s: %d",
+		reportEntryNotActivated:   "%s",
+		reportPageSuffix:          "%s (%d)",
+		reportDateLayout:          "02.01.2006",
+		dateEndless:               "бессрочно",
+	}
 
-	require.NoError(t, newTestReporterWith(repo, created, bot).Send(context.Background()))
+	activation := NewActivationReport(
+		&reporterStub{stats: []model.PromoActivationStat{stat("AAA", 0, 0)}},
+		&creationsStub{logs: []audit.Log{creation("AAA", "boss")}},
+		pool.GetContext("ru"),
+		14*24*time.Hour,
+		testMaxPages,
+	)
 
-	sent, ok := bot.GetOutput().([]tgbotapi.Chattable)
-	require.True(t, ok)
-	require.Len(t, sent, 1)
+	pages, err := activation.Build(context.Background(), testNow)
+	require.NoError(t, err)
+	require.Len(t, pages, 1)
 
-	msg, ok := sent[0].(tgbotapi.MessageConfig)
-	require.True(t, ok)
-	assert.Equal(t, testChatID, msg.ChatID)
-	assert.Contains(t, msg.Text, "AAA: 1")
+	assert.Contains(t, pages[0], "Отчёт с 01.06.2026")
+	assert.Contains(t, pages[0],
+		"AAA от boss, 10 см, 5 активаций, создан 10.06.2026, действует 10.06.2026 - 01.07.2026")
+	assert.NotContains(t, pages[0], "2026-06")
 }
 
-func TestReporter_SendRepositoryErrorIsNotDelivered(t *testing.T) {
-	bot := &base.FakeBotAPI{}
+// manyCreatedCodes returns more created codes than fit in a single message.
+func manyCreatedCodes(count int) ([]audit.Log, []model.PromoActivationStat, []string) {
+	var (
+		creations []audit.Log
+		stats     []model.PromoActivationStat
+		codes     []string
+	)
 
-	err := newTestReporterWith(
-		&reporterStub{err: errors.New("boom")},
-		&creationsStub{logs: []audit.Log{creation("AAA", "boss")}},
-		bot,
-	).Send(context.Background())
+	for i := range count {
+		code := fmt.Sprintf("CODE%04d", i)
+		codes = append(codes, code)
+		creations = append(creations, creation(code, "boss"))
+		stats = append(stats, stat(code, 0, 0))
+	}
 
-	require.Error(t, err)
-	assert.Empty(t, bot.GetOutput())
+	return creations, stats, codes
+}
+
+// The activation report paginates the same way the events one does, except that
+// its blocks are the sections, so a long section continues under its own title.
+func TestActivationReport_BuildPaginatesLongSections(t *testing.T) {
+	creations, stats, codes := manyCreatedCodes(200)
+
+	pages, err := newTestActivationReport(&reporterStub{stats: stats}, &creationsStub{logs: creations}).
+		Build(context.Background(), testNow)
+
+	require.NoError(t, err)
+	require.Greater(t, len(pages), 1)
+
+	for i, page := range pages {
+		assert.LessOrEqual(t, msgLen(page), maxMessageLen, "page %d is over the limit", i+1)
+		assert.Contains(t, page, fmt.Sprintf("(page %d)", i+1))
+	}
+
+	joined := strings.Join(pages, "\n")
+
+	// The section title comes back wherever the section continues.
+	assert.Greater(t, strings.Count(joined, "Created"), 1)
+
+	// Every code survives the split. Each is listed twice on purpose: once under
+	// "Created", and once under the activation section it belongs to — here
+	// "Not activated", since none of them was used.
+	for _, code := range codes {
+		assert.Equal(t, 2, strings.Count(joined, code), "code %s", code)
+	}
+
+	// The cap is generous here, so nothing was dropped.
+	assert.NotContains(t, joined, "left out")
+}
+
+// The page cap applies to this report too, not only to the events one.
+func TestActivationReport_BuildRespectsThePageCap(t *testing.T) {
+	creations, stats, _ := manyCreatedCodes(200)
+
+	capped := NewActivationReport(
+		&reporterStub{stats: stats},
+		&creationsStub{logs: creations},
+		testLang(),
+		14*24*time.Hour,
+		2,
+	)
+
+	pages, err := capped.Build(context.Background(), testNow)
+
+	require.NoError(t, err)
+	require.Len(t, pages, 2)
+	assert.Contains(t, pages[1], "more page(s) left out")
+
+	for i, page := range pages {
+		assert.LessOrEqual(t, msgLen(page), maxMessageLen, "page %d is over the limit", i+1)
+	}
+}
+
+func TestActivationReport_Name(t *testing.T) {
+	assert.Equal(t, "activation", newTestActivationReport(&reporterStub{}, &creationsStub{}).Name())
 }

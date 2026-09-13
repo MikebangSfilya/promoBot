@@ -19,8 +19,12 @@ type ReportConfig struct {
 	ChatID int64
 	// Cron is the schedule expression, interpreted in UTC.
 	Cron string
-	// Period is how far back a report looks.
+	// Period is how far back the activation report looks.
 	Period time.Duration
+	// EventsPeriod is how far back the events report looks.
+	EventsPeriod time.Duration
+	// MaxPages caps how many messages a single report may be split into.
+	MaxPages int
 	// Lang is the language the report is written in.
 	Lang string
 }
@@ -45,7 +49,17 @@ func NewReportConfig(supportedLanguages []string, defaultLang string) (*ReportCo
 		return nil, fmt.Errorf("%s is not a valid chat id: %q: %w", EnvAdminsChatID, rawChatID, err)
 	}
 
-	period, err := reportPeriod()
+	period, err := periodWeeks(EnvReportPeriodWeek, DefaultReportPeriodWeeks)
+	if err != nil {
+		return nil, err
+	}
+
+	eventsPeriod, err := periodWeeks(EnvReportEventsPeriodWeeks, DefaultReportEventsPeriodWeeks)
+	if err != nil {
+		return nil, err
+	}
+
+	maxPages, err := boundedInt(EnvReportMaxPages, DefaultReportMaxPages, MaxReportPagesAllowed)
 	if err != nil {
 		return nil, err
 	}
@@ -66,22 +80,48 @@ func NewReportConfig(supportedLanguages []string, defaultLang string) (*ReportCo
 		lang = defaultLang
 	}
 
-	return &ReportConfig{ChatID: chatID, Cron: cron, Period: period, Lang: lang}, nil
+	return &ReportConfig{
+		ChatID:       chatID,
+		Cron:         cron,
+		Period:       period,
+		EventsPeriod: eventsPeriod,
+		MaxPages:     maxPages,
+		Lang:         lang,
+	}, nil
 }
 
-func reportPeriod() (time.Duration, error) {
-	weeks := DefaultReportPeriodWeeks
+// periodWeeks reads a window given in whole weeks, falling back to def.
+//
+// The upper bound is what keeps the multiplication below from overflowing into a
+// negative duration, which would put the window's start in the future.
+func periodWeeks(key string, def int) (time.Duration, error) {
+	weeks := def
 
-	if raw := trimmedEnv(EnvReportPeriodWeek); raw != "" {
+	if raw := trimmedEnv(key); raw != "" {
 		parsed, err := strconv.Atoi(raw)
 		if err != nil || parsed <= 0 || parsed > MaxReportPeriodWeeks {
 			return 0, fmt.Errorf("%s must be a whole number of weeks between 1 and %d, got %q",
-				EnvReportPeriodWeek, MaxReportPeriodWeeks, raw)
+				key, MaxReportPeriodWeeks, raw)
 		}
 		weeks = parsed
 	}
 
 	return time.Duration(weeks) * week, nil
+}
+
+// boundedInt reads a whole number within 1..max, falling back to def.
+func boundedInt(key string, def, max int) (int, error) {
+	raw := trimmedEnv(key)
+	if raw == "" {
+		return def, nil
+	}
+
+	parsed, err := strconv.Atoi(raw)
+	if err != nil || parsed <= 0 || parsed > max {
+		return 0, fmt.Errorf("%s must be a whole number between 1 and %d, got %q", key, max, raw)
+	}
+
+	return parsed, nil
 }
 
 func trimmedEnv(key string) string {

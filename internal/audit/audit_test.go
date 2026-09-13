@@ -245,10 +245,19 @@ func TestFileStorage_FindLogs(t *testing.T) {
 			Log{Code: "D", Action: actionUpdate, By: "boss", At: now},
 		)
 
-		assert.Equal(t, []string{"B", "D"}, codesOf(findLogs(t, storage, actionUpdate, since)))
-		assert.Equal(t, []string{"C"}, codesOf(findLogs(t, storage, actionDelete, since)))
-		assert.Equal(t, []string{"A"}, codesOf(findLogs(t, storage, actionCreate, since)))
-		assert.Empty(t, findLogs(t, storage, "nonexistent", since))
+		assert.Equal(t, []string{"B", "D"}, codesOf(findLogs(t, storage, since, actionUpdate)))
+		assert.Equal(t, []string{"C"}, codesOf(findLogs(t, storage, since, actionDelete)))
+		assert.Equal(t, []string{"A"}, codesOf(findLogs(t, storage, since, actionCreate)))
+		assert.Empty(t, findLogs(t, storage, since, "nonexistent"))
+
+		// No actions at all means every action, in the order they were written.
+		assert.Equal(t, []string{"A", "B", "C", "D"}, codesOf(findLogs(t, storage, since)))
+
+		// Several actions match any of them.
+		assert.Equal(t, []string{"A", "C"},
+			codesOf(findLogs(t, storage, since, actionCreate, actionDelete)))
+		assert.Equal(t, []string{"A", "B", "D"},
+			codesOf(findLogs(t, storage, since, actionCreate, actionUpdate, "nonexistent")))
 	})
 
 	t.Run("returns nothing for an empty log", func(t *testing.T) {
@@ -357,10 +366,10 @@ func saveAll(t *testing.T, storage *FileStorage, records ...Log) {
 	}
 }
 
-func findLogs(t *testing.T, storage *FileStorage, action string, since time.Time) []Log {
+func findLogs(t *testing.T, storage *FileStorage, since time.Time, actions ...string) []Log {
 	t.Helper()
 
-	found, err := storage.FindLogs(action, since)
+	found, err := storage.FindLogs(since, actions...)
 	require.NoError(t, err)
 
 	return found
@@ -378,7 +387,7 @@ const (
 func createdSince(t *testing.T, storage *FileStorage, since time.Time) []Log {
 	t.Helper()
 
-	return findLogs(t, storage, actionCreate, since)
+	return findLogs(t, storage, since, actionCreate)
 }
 
 func codesOf(created []Log) []string {
