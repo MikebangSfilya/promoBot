@@ -117,7 +117,9 @@ func (s *Scheduler) sendReport(ctx context.Context, now time.Time, report Report
 	for i, page := range pages {
 		// Reply* methods all require an incoming message, so an unsolicited push
 		// has to go through Send with an explicitly built message.
-		if _, err := s.bot.Send(tgbotapi.NewMessage(s.chatID, page)); err != nil {
+		msg := tgbotapi.NewMessage(s.chatID, page)
+		msg.ParseMode = tgbotapi.ModeHTML
+		if _, err := s.bot.Send(msg); err != nil {
 			return fmt.Errorf("failed to send page %d of %d: %w", i+1, len(pages), err)
 		}
 	}

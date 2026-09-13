@@ -6,13 +6,12 @@ package report
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/MikebangSfilya/promoBot/internal/audit"
-	"github.com/MikebangSfilya/promoBot/internal/formatter"
 	"github.com/MikebangSfilya/promoBot/internal/model"
 
+	"github.com/iafan/Plurr/go/plurr"
 	"github.com/loctools/go-l10n/loc"
 	"github.com/samber/lo"
 )
@@ -23,7 +22,6 @@ const (
 	reportSectionCreated      = "reportSectionCreated"
 	reportSectionActivated    = "reportSectionActivated"
 	reportSectionNotActivated = "reportSectionNotActivated"
-	reportSectionCount        = "reportSectionCount"
 	reportEntryCreated        = "reportEntryCreatedFormat"
 	reportEntryActivated      = "reportEntryActivatedFormat"
 	reportEntryNotActivated   = "reportEntryNotActivatedFormat"
@@ -100,11 +98,11 @@ func (r *ActivationReport) Build(ctx context.Context, now time.Time) ([]string, 
 		return entry.ActivationsInWindow > 0
 	})
 
-	blocks := []block{
+	blocks := lo.Filter([]block{
 		r.section(reportSectionCreated, entries, r.formatCreated),
 		r.section(reportSectionActivated, activated, r.formatActivated),
 		r.section(reportSectionNotActivated, notActivated, r.formatNotActivated),
-	}
+	}, func(b block, _ int) bool { return len(b.lines) > 0 })
 
 	title := fmt.Sprintf(r.lang.Tr(reportTitle), formatDate(r.lang, &since))
 
@@ -152,23 +150,37 @@ func (r *ActivationReport) collect(ctx context.Context, since time.Time, creatio
 	}), nil
 }
 
+// truncatedNotice says how many pages were left out, in the report's language.
+func (r *ActivationReport) truncatedNotice(dropped int) string {
+	return r.lang.Format(reportTruncated, plurr.Params{"n": dropped})
+}
+
 func (r *ActivationReport) pageOptions(title string) pageOptions {
 	return pageOptions{
 		title:     title,
 		suffix:    r.lang.Tr(reportPageSuffix),
-		truncated: r.lang.Tr(reportTruncated),
+		truncated: r.truncatedNotice,
 		limit:     maxMessageLen,
 		maxPages:  r.maxPages,
 	}
 }
 
-// section renders one section as a block, so that a long one can be continued on
-// the next page under its own title.
+// section renders one section as a block, so that a long one can be continued
+// on the next page under its own title.
+//
+// A section with nothing in it comes back empty and is dropped by the caller:
+// an empty heading tells the reader nothing.
 func (r *ActivationReport) section(titleKey string, entries []model.ReportEntry, format func(model.ReportEntry) string) block {
-	text := formatter.FormatList(r.lang.Tr(titleKey), r.lang.Tr(reportSectionCount), entries, format)
-	lines := strings.Split(text, "\n")
+	if len(entries) == 0 {
+		return block{}
+	}
 
-	return block{header: lines[0], lines: lines[1:]}
+	return block{
+		header: r.lang.Tr(titleKey),
+		lines: lo.Map(entries, func(entry model.ReportEntry, i int) string {
+			return fmt.Sprintf("%d. %s", i+1, format(entry))
+		}),
+	}
 }
 
 func (r *ActivationReport) formatCreated(entry model.ReportEntry) string {
@@ -176,23 +188,29 @@ func (r *ActivationReport) formatCreated(entry model.ReportEntry) string {
 	if author == "" {
 		author = r.lang.Tr(reportUnknownAuthor)
 	}
-	return fmt.Sprintf(r.lang.Tr(reportEntryCreated),
-		entry.Code,
-		author,
-		entry.BonusLength,
-		entry.InitialCapacity(),
-		formatDate(r.lang, &entry.CreatedAt),
-		formatDate(r.lang, entry.Since),
-		r.formatUntil(entry.Until),
-	)
+
+	return r.lang.Format(reportEntryCreated, plurr.Params{
+		"code":     escapeHTML(entry.Code),
+		"author":   escapeHTML(author),
+		"length":   entry.BonusLength,
+		"capacity": entry.InitialCapacity(),
+		"created":  formatDate(r.lang, &entry.CreatedAt),
+		"since":    formatDate(r.lang, entry.Since),
+		"until":    r.formatUntil(entry.Until),
+	})
 }
 
 func (r *ActivationReport) formatActivated(entry model.ReportEntry) string {
-	return fmt.Sprintf(r.lang.Tr(reportEntryActivated), entry.Code, entry.ActivationsInWindow)
+	return r.lang.Format(reportEntryActivated, plurr.Params{
+		"code": escapeHTML(entry.Code),
+		"n":    entry.ActivationsInWindow,
+	})
 }
 
 func (r *ActivationReport) formatNotActivated(entry model.ReportEntry) string {
-	return fmt.Sprintf(r.lang.Tr(reportEntryNotActivated), entry.Code)
+	return r.lang.Format(reportEntryNotActivated, plurr.Params{
+		"code": escapeHTML(entry.Code),
+	})
 }
 
 // formatUntil renders an open-ended promo code as "endless" rather than a blank.

@@ -66,26 +66,27 @@ func testLang() *loc.Context {
 	pool := loc.NewPool("en")
 	pool.Resources["en"] = map[string]string{
 		reportTitle:               "Report since %s",
-		reportSectionCreated:      "Created",
-		reportSectionActivated:    "Activated",
-		reportSectionNotActivated: "Not activated",
-		reportSectionCount:        "Total: %d",
-		reportEntryCreated:        "%s by %s, %d cm, %d activations, created %s, valid %s - %s",
-		reportEntryActivated:      "%s: %d",
-		reportEntryNotActivated:   "%s",
-		reportEmpty:               "Nothing since %s",
-		reportUnknownAuthor:       "unknown",
-		reportPageSuffix:          "%s (page %d)",
-		reportDateLayout:          "2006-01-02",
-		reportTruncated:           "... %d more page(s) left out",
-		dateEndless:               "endless",
+		reportSectionCreated:      "Created:",
+		reportSectionActivated:    "Activated:",
+		reportSectionNotActivated: "Not activated:",
+		reportEntryCreated: "<code>{code}</code> by {author}, {length} cm, " +
+			"{capacity} {capacity_PLURAL:activation|activations}, created {created}, " +
+			"valid {since} - {until}",
+		reportEntryActivated:    "<code>{code}</code>: {n} {n_PLURAL:activation|activations}",
+		reportEntryNotActivated: "<code>{code}</code>",
+		reportEmpty:             "Nothing since %s",
+		reportUnknownAuthor:     "unknown",
+		reportPageSuffix:        "%s (page %d)",
+		reportDateLayout:        "2006-01-02",
+		reportTruncated:         "... {n} more {n_PLURAL:page|pages} left out",
+		dateEndless:             "endless",
 
 		eventsReportTitle:        "Changes since %s",
 		eventsReportEmpty:        "No changes since %s",
 		eventsReportAuthor:       "@%s",
-		eventsReportEntry:        "%s %s %s",
+		eventsReportEntry:        "<i>%s</i> — %s <code>%s</code>",
 		eventsReportChanges:      ": %s",
-		eventsReportChange:       "%s %s -> %s",
+		eventsReportChange:       "%s <b>%s</b> -> <b>%s</b>",
 		eventsTimeLayout:         "2006-01-02 15:04",
 		eventsActionCreate:       "created",
 		eventsActionUpdate:       "updated",
@@ -150,40 +151,40 @@ func TestActivationReport_Build(t *testing.T) {
 			stats:     []model.PromoActivationStat{stat("AAA", 3, 3), stat("BBB", 1, 1)},
 			wantContain: []string{
 				"Report since 2026-06-01",
-				"AAA by boss, 10 cm, 8 activations, created 2026-06-10, valid 2026-06-10 - 2026-07-01",
-				"AAA: 3",
-				"BBB: 1",
-				"Not activated: \n\n\nTotal: 0",
+				"<code>AAA</code> by boss, 10 cm, 8 activations, created 2026-06-10, valid 2026-06-10 - 2026-07-01",
+				"<code>AAA</code>: 3",
+				"<code>BBB</code>: 1",
 			},
+			// Every code was used, so the third section has nothing to say and
+			// is left out rather than shown empty.
+			wantAbsent: []string{"Not activated:"},
 		},
 		{
-			name:      "none activated",
-			creations: []audit.Log{creation("AAA", "boss")},
-			stats:     []model.PromoActivationStat{stat("AAA", 0, 0)},
-			wantContain: []string{
-				"Activated: \n\n\nTotal: 0",
-				"Not activated: \n\n1. AAA\n\nTotal: 1",
-			},
+			name:        "none activated",
+			creations:   []audit.Log{creation("AAA", "boss")},
+			stats:       []model.PromoActivationStat{stat("AAA", 0, 0)},
+			wantContain: []string{"Not activated:\n1. <code>AAA</code>"},
+			wantAbsent:  []string{"Activated:\n"},
 		},
 		{
 			name:      "mixed",
 			creations: []audit.Log{creation("AAA", "boss"), creation("BBB", "boss")},
 			stats:     []model.PromoActivationStat{stat("AAA", 2, 4), stat("BBB", 0, 0)},
 			wantContain: []string{
-				"1. AAA: 2\n\nTotal: 1",
-				"1. BBB\n\nTotal: 1",
+				"Activated:\n1. <code>AAA</code>: 2",
+				"Not activated:\n1. <code>BBB</code>",
 				// Initial capacity is the remaining capacity plus every
 				// activation ever, not just the ones inside the window.
-				"AAA by boss, 10 cm, 9 activations",
+				"<code>AAA</code> by boss, 10 cm, 9 activations",
 			},
-			wantAbsent: []string{"BBB: 0"},
+			wantAbsent: []string{"<code>BBB</code>: 0"},
 		},
 		{
 			name:      "a code deleted since its creation is dropped",
 			creations: []audit.Log{creation("AAA", "boss"), creation("GONE", "boss")},
 			stats:     []model.PromoActivationStat{stat("AAA", 1, 1)},
 			// Nothing was created that still exists, apart from AAA.
-			wantContain: []string{"Created: \n\n1. AAA", "Total: 1"},
+			wantContain: []string{"Created:\n1. <code>AAA</code>"},
 			wantAbsent:  []string{"GONE"},
 		},
 		{
@@ -236,7 +237,7 @@ func TestActivationReport_BuildLatestCreationWins(t *testing.T) {
 		newTestActivationReport(repo, &creationsStub{logs: []audit.Log{first, second}}), testNow)
 
 	assert.Equal(t, []string{"AAA"}, repo.codes)
-	assert.Contains(t, text, "AAA by second, 10 cm, 5 activations, created 2026-06-11")
+	assert.Contains(t, text, "<code>AAA</code> by second, 10 cm, 5 activations, created 2026-06-11")
 	assert.NotContains(t, text, "by first")
 }
 
@@ -257,7 +258,7 @@ func TestActivationReport_BuildEndlessPromoAndUnknownAuthor(t *testing.T) {
 		&creationsStub{logs: []audit.Log{creation("AAA", "")}},
 	), testNow)
 
-	assert.Contains(t, text, "AAA by unknown, 10 cm, 5 activations, created 2026-06-10, valid 2026-06-10 - endless")
+	assert.Contains(t, text, "<code>AAA</code> by unknown, 10 cm, 5 activations, created 2026-06-10, valid 2026-06-10 - endless")
 }
 
 func TestActivationReport_BuildRepositoryError(t *testing.T) {
@@ -276,16 +277,17 @@ func TestActivationReport_BuildLocalizedDates(t *testing.T) {
 	pool := loc.NewPool("ru")
 	pool.Resources["ru"] = map[string]string{
 		reportTitle:               "Отчёт с %s",
-		reportSectionCreated:      "Созданы",
-		reportSectionActivated:    "Активированы",
-		reportSectionNotActivated: "Не активированы",
-		reportSectionCount:        "Всего: %d",
-		reportEntryCreated:        "%s от %s, %d см, %d активаций, создан %s, действует %s - %s",
-		reportEntryActivated:      "%s: %d",
-		reportEntryNotActivated:   "%s",
-		reportPageSuffix:          "%s (%d)",
-		reportDateLayout:          "02.01.2006",
-		dateEndless:               "бессрочно",
+		reportSectionCreated:      "Созданы:",
+		reportSectionActivated:    "Активированы:",
+		reportSectionNotActivated: "Не активированы:",
+		reportEntryCreated: "<code>{code}</code> от {author}, {length} см, " +
+			"{capacity} {capacity_PLURAL:активация|активации|активаций}, создан {created}, " +
+			"действует {since} - {until}",
+		reportEntryActivated:    "<code>{code}</code>: {n}",
+		reportEntryNotActivated: "<code>{code}</code>",
+		reportPageSuffix:        "%s (%d)",
+		reportDateLayout:        "02.01.2006",
+		dateEndless:             "бессрочно",
 	}
 
 	activation := NewActivationReport(
@@ -302,7 +304,7 @@ func TestActivationReport_BuildLocalizedDates(t *testing.T) {
 
 	assert.Contains(t, pages[0], "Отчёт с 01.06.2026")
 	assert.Contains(t, pages[0],
-		"AAA от boss, 10 см, 5 активаций, создан 10.06.2026, действует 10.06.2026 - 01.07.2026")
+		"<code>AAA</code> от boss, 10 см, 5 активаций, создан 10.06.2026, действует 10.06.2026 - 01.07.2026")
 	assert.NotContains(t, pages[0], "2026-06")
 }
 
@@ -349,7 +351,7 @@ func TestActivationReport_BuildPaginatesLongSections(t *testing.T) {
 	// "Created", and once under the activation section it belongs to — here
 	// "Not activated", since none of them was used.
 	for _, code := range codes {
-		assert.Equal(t, 2, strings.Count(joined, code), "code %s", code)
+		assert.Equal(t, 2, strings.Count(joined, "<code>"+code+"</code>"), "code %s", code)
 	}
 
 	// The cap is generous here, so nothing was dropped.
@@ -372,11 +374,44 @@ func TestActivationReport_BuildRespectsThePageCap(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, pages, 2)
-	assert.Contains(t, pages[1], "more page(s) left out")
+	assert.Contains(t, pages[1], "more pages left out")
 
 	for i, page := range pages {
 		assert.LessOrEqual(t, msgLen(page), maxMessageLen, "page %d is over the limit", i+1)
 	}
+}
+
+// Plurals follow the language's rules rather than a bare "N activations".
+func TestActivationReport_BuildPluralises(t *testing.T) {
+	for _, tt := range []struct {
+		activations int
+		want        string
+	}{
+		{1, "<code>AAA</code>: 1 activation"},
+		{2, "<code>AAA</code>: 2 activations"},
+		{5, "<code>AAA</code>: 5 activations"},
+	} {
+		text := buildPage(t, newTestActivationReport(
+			&reporterStub{stats: []model.PromoActivationStat{stat("AAA", tt.activations, tt.activations)}},
+			&creationsStub{logs: []audit.Log{creation("AAA", "boss")}},
+		), testNow)
+
+		assert.Contains(t, text, tt.want)
+	}
+}
+
+// A code or an author holding a character the markup uses must not break the
+// message: it is escaped rather than passed through.
+func TestActivationReport_BuildEscapesHTML(t *testing.T) {
+	text := buildPage(t, newTestActivationReport(
+		&reporterStub{stats: []model.PromoActivationStat{stat("A&B<C>", 0, 0)}},
+		&creationsStub{logs: []audit.Log{creation("A&B<C>", "me & <you>")}},
+	), testNow)
+
+	assert.Contains(t, text, "<code>A&amp;B&lt;C&gt;</code>")
+	assert.Contains(t, text, "by me &amp; &lt;you&gt;")
+	// The raw form would end the code element early and swallow the rest.
+	assert.NotContains(t, text, "A&B<C>")
 }
 
 func TestActivationReport_Name(t *testing.T) {

@@ -10,6 +10,7 @@ import (
 	"github.com/MikebangSfilya/promoBot/internal/audit"
 	"github.com/MikebangSfilya/promoBot/internal/model"
 
+	"github.com/iafan/Plurr/go/plurr"
 	"github.com/loctools/go-l10n/loc"
 	"github.com/samber/lo"
 )
@@ -76,9 +77,12 @@ func (r *EventsReport) Build(_ context.Context, now time.Time) ([]string, error)
 
 	blocks := lo.Map(authors, func(author string, _ int) block {
 		return block{
-			header: fmt.Sprintf(r.lang.Tr(eventsReportAuthor), r.authorName(author)),
-			lines: lo.Map(eventsByAuthor[author], func(e audit.Log, _ int) string {
-				return r.formatEvent(e)
+			header: fmt.Sprintf(r.lang.Tr(eventsReportAuthor), escapeHTML(r.authorName(author))),
+			// The count restarts under every person: each block is that person's
+			// own list, and a block continued on the next page keeps the numbers
+			// its lines already had.
+			lines: lo.Map(eventsByAuthor[author], func(e audit.Log, i int) string {
+				return fmt.Sprintf("%d. %s", i+1, r.formatEvent(e))
 			}),
 		}
 	})
@@ -86,11 +90,13 @@ func (r *EventsReport) Build(_ context.Context, now time.Time) ([]string, error)
 	title := fmt.Sprintf(r.lang.Tr(eventsReportTitle), formatDate(r.lang, &since))
 
 	return paginate(pageOptions{
-		title:     title,
-		suffix:    r.lang.Tr(reportPageSuffix),
-		truncated: r.lang.Tr(reportTruncated),
-		limit:     maxMessageLen,
-		maxPages:  r.maxPages,
+		title:  title,
+		suffix: r.lang.Tr(reportPageSuffix),
+		truncated: func(dropped int) string {
+			return r.lang.Format(reportTruncated, plurr.Params{"n": dropped})
+		},
+		limit:    maxMessageLen,
+		maxPages: r.maxPages,
 	}, blocks), nil
 }
 
@@ -104,8 +110,8 @@ func (r *EventsReport) authorName(author string) string {
 func (r *EventsReport) formatEvent(e audit.Log) string {
 	line := fmt.Sprintf(r.lang.Tr(eventsReportEntry),
 		e.At.UTC().Format(r.lang.Tr(eventsTimeLayout)),
-		r.actionName(e.Action),
-		e.Code,
+		escapeHTML(r.actionName(e.Action)),
+		escapeHTML(e.Code),
 	)
 
 	if changes := r.formatChanges(e.Changes); changes != "" {
@@ -142,9 +148,9 @@ func (r *EventsReport) formatChanges(changes map[string]audit.Change) string {
 	return strings.Join(lo.Map(fields, func(field string, _ int) string {
 		change := changes[field]
 		return fmt.Sprintf(r.lang.Tr(eventsReportChange),
-			r.fieldName(field),
-			r.changeValue(change.Old),
-			r.changeValue(change.New),
+			escapeHTML(r.fieldName(field)),
+			escapeHTML(r.changeValue(change.Old)),
+			escapeHTML(r.changeValue(change.New)),
 		)
 	}), ", ")
 }

@@ -5,6 +5,7 @@ go 1.24.3
 require (
 	github.com/OvyFlash/telegram-bot-api v0.0.0-20251112155921-e82db5fd534b
 	github.com/go-redis/redis/v8 v8.11.5
+	github.com/iafan/Plurr v0.0.0-20210201030434-cd773e100b9c
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/kozalosev/goSadTgBot v0.4.1-0.20251124032837-c4d2c67126ab
 	github.com/loctools/go-l10n v0.0.0-20191031185225-4f8f121cf651
@@ -44,7 +45,6 @@ require (
 	github.com/google/go-github/v39 v39.2.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/iafan/Plurr v0.0.0-20210201030434-cd773e100b9c // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect

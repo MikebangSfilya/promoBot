@@ -19,11 +19,13 @@ func testBlock(header string, lines ...string) block {
 // out of the way except where a test sets its own.
 func testPages(title string, limit int) pageOptions {
 	return pageOptions{
-		title:     title,
-		suffix:    testSuffix,
-		truncated: "... %d more page(s) left out",
-		limit:     limit,
-		maxPages:  50,
+		title:  title,
+		suffix: testSuffix,
+		truncated: func(dropped int) string {
+			return fmt.Sprintf("... %d more page(s) left out", dropped)
+		},
+		limit:    limit,
+		maxPages: 50,
 	}
 }
 
@@ -159,7 +161,9 @@ func TestPaginate(t *testing.T) {
 
 		opts := testPages("Title", limit)
 		opts.maxPages = 1
-		opts.truncated = strings.Repeat("!", 30) + " %d"
+		opts.truncated = func(dropped int) string {
+			return fmt.Sprintf(strings.Repeat("!", 30)+" %d", dropped)
+		}
 
 		pages := paginate(opts, blocks)
 

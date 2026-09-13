@@ -43,10 +43,10 @@ func TestEventsReport_Build(t *testing.T) {
 	assert.Equal(t,
 		"Changes since 2026-06-08\n\n"+
 			"@boss\n"+
-			"2026-06-12 12:00 created SUMMER\n"+
-			"2026-06-14 12:00 deleted SUMMER\n\n"+
+			"1. <i>2026-06-12 12:00</i> — created <code>SUMMER</code>\n"+
+			"2. <i>2026-06-14 12:00</i> — deleted <code>SUMMER</code>\n\n"+
 			"@auto\n"+
-			"2026-06-13 12:00 created X1Y2Z3",
+			"1. <i>2026-06-13 12:00</i> — created <code>X1Y2Z3</code>",
 		text)
 
 	// The window is the period before now, and every action is asked for.
@@ -68,7 +68,8 @@ func TestEventsReport_BuildShowsChanges(t *testing.T) {
 	// Fields are sorted by name, and the empty value of an open-ended date is
 	// rendered rather than left blank.
 	assert.Contains(t, text,
-		"updated SUMMER: length 10 -> 15, activations 5 -> 10, end 2026-10-01 -> endless")
+		"updated <code>SUMMER</code>: length <b>10</b> -> <b>15</b>, "+
+			"activations <b>5</b> -> <b>10</b>, end <b>2026-10-01</b> -> <b>endless</b>")
 }
 
 // Changes is a map, so the order has to be imposed rather than inherited.
@@ -98,7 +99,7 @@ func TestEventsReport_BuildUnknownAuthorAndAction(t *testing.T) {
 
 	assert.Contains(t, text, "@unknown")
 	// An action this code knows nothing about is shown as it was recorded.
-	assert.Contains(t, text, "archived AAA")
+	assert.Contains(t, text, "archived <code>AAA</code>")
 }
 
 func TestEventsReport_BuildEmptyWindow(t *testing.T) {
@@ -136,7 +137,7 @@ func TestEventsReport_BuildPaginatesLongAuthor(t *testing.T) {
 	}
 
 	// Every event survives the split.
-	assert.Equal(t, len(logs), strings.Count(strings.Join(pages, "\n"), "updated PROMOCODE"))
+	assert.Equal(t, len(logs), strings.Count(strings.Join(pages, "\n"), "updated <code>PROMOCODE</code>"))
 }
 
 // The timestamp is localized: English writes it the ISO way, Russian as
@@ -146,7 +147,7 @@ func TestEventsReport_BuildLocalizedTimeLayout(t *testing.T) {
 	pool.Resources["ru"] = map[string]string{
 		eventsReportTitle:  "Изменения с %s",
 		eventsReportAuthor: "@%s",
-		eventsReportEntry:  "%s %s %s",
+		eventsReportEntry:  "<i>%s</i> — %s <code>%s</code>",
 		eventsTimeLayout:   "02.01.2006 15:04",
 		reportDateLayout:   "02.01.2006",
 		eventsActionCreate: "создал",
@@ -161,7 +162,7 @@ func TestEventsReport_BuildLocalizedTimeLayout(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, pages, 1)
 
-	assert.Contains(t, pages[0], "14.06.2026 12:00 создал AAA")
+	assert.Contains(t, pages[0], "1. <i>14.06.2026 12:00</i> — создал <code>AAA</code>")
 	assert.NotContains(t, pages[0], "2026-06-14")
 
 	// The title date follows the same locale, so one message never mixes formats.

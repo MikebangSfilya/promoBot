@@ -23,8 +23,10 @@ type pageOptions struct {
 	title string
 	// suffix turns the title into "Title (page 2)" when there is more than one.
 	suffix string
-	// truncated announces the pages left out once maxPages is reached.
-	truncated string
+	// truncated renders the notice for the given number of pages left out. It is
+	// a function because the wording is localized and can be a plural, which is
+	// the report's business rather than the paginator's.
+	truncated func(dropped int) string
 	// limit is the largest message the chat accepts, in UTF-16 code units.
 	limit int
 	// maxPages bounds how many messages one report may become.
@@ -94,7 +96,7 @@ func paginate(opts pageOptions, blocks []block) []string {
 		pages = pages[:opts.maxPages]
 
 		last := len(pages) - 1
-		pages[last] = withNotice(pages[last], fmt.Sprintf(opts.truncated, dropped), budget)
+		pages[last] = withNotice(pages[last], opts.truncated(dropped), budget)
 	}
 
 	return withTitles(pages, opts.title, opts.suffix)
