@@ -47,7 +47,6 @@ type promoPageRequest struct {
 }
 
 type GetHandle struct {
-	base.CommandHandlerTrait
 	common.PrivateCommandTrait
 
 	appEnv *base.ApplicationEnv

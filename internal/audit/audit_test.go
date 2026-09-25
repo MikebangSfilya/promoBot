@@ -1,10 +1,14 @@
 package audit
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/samber/lo"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -183,5 +187,216 @@ func TestNewFileStorage(t *testing.T) {
 		storage, err := NewFileStorage(filepath.Join(blockingFile, "audit-logs"))
 		require.Error(t, err)
 		require.Nil(t, storage)
+	})
+}
+
+func TestFileStorage_FindLogs(t *testing.T) {
+	t.Run("returns creations inside the window, oldest first", func(t *testing.T) {
+		storage, _ := newTestStorage(t)
+		now := time.Now()
+		since := now.Add(-14 * 24 * time.Hour)
+
+		saveAll(t, storage,
+			Log{Code: "OLD", Action: actionCreate, By: "boss", At: now.Add(-30 * 24 * time.Hour)},
+			Log{Code: "NEW", Action: actionCreate, By: "boss", At: now.Add(-3 * 24 * time.Hour)},
+			Log{Code: "NEWER", Action: actionCreate, By: "auto", At: now.Add(-1 * 24 * time.Hour)},
+			Log{Code: "NEW", Action: actionUpdate, By: "boss", At: now.Add(-2 * 24 * time.Hour)},
+			Log{Code: "NEWER", Action: actionDelete, By: "boss", At: now.Add(-1 * time.Hour)},
+			Log{Code: "EDGE", Action: actionCreate, By: "boss", At: since},
+		)
+
+		created := createdSince(t, storage, since)
+
+		// Only creations, only within the window, oldest first. The lower bound
+		// is inclusive, and a later delete does not remove the creation record.
+		assert.Equal(t, []string{"EDGE", "NEW", "NEWER"}, codesOf(created))
+		assert.Equal(t, "auto", created[2].By)
+	})
+
+	t.Run("skips malformed records", func(t *testing.T) {
+		storage, dir := newTestStorage(t)
+		now := time.Now()
+
+		saveAll(t, storage, Log{Code: "GOOD", Action: actionCreate, By: "boss", At: now})
+
+		// A truncated write, a blank line, and a non-JSON line must not stop the report.
+		f, err := os.OpenFile(filepath.Join(dir, "audit.json"), os.O_APPEND|os.O_WRONLY, 0644)
+		require.NoError(t, err)
+		_, err = f.WriteString("{\"code\":\"BROKEN\"\n\nnot json at all\n")
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
+
+		saveAll(t, storage, Log{Code: "ALSO_GOOD", Action: actionCreate, By: "boss", At: now})
+
+		created := createdSince(t, storage, now.Add(-time.Hour))
+
+		assert.Equal(t, []string{"GOOD", "ALSO_GOOD"}, codesOf(created))
+	})
+
+	t.Run("finds any action, not just creations", func(t *testing.T) {
+		storage, _ := newTestStorage(t)
+		now := time.Now()
+		since := now.Add(-time.Hour)
+
+		saveAll(t, storage,
+			Log{Code: "A", Action: actionCreate, By: "boss", At: now},
+			Log{Code: "B", Action: actionUpdate, By: "boss", At: now},
+			Log{Code: "C", Action: actionDelete, By: "boss", At: now},
+			Log{Code: "D", Action: actionUpdate, By: "boss", At: now},
+		)
+
+		assert.Equal(t, []string{"B", "D"}, codesOf(findLogs(t, storage, since, actionUpdate)))
+		assert.Equal(t, []string{"C"}, codesOf(findLogs(t, storage, since, actionDelete)))
+		assert.Equal(t, []string{"A"}, codesOf(findLogs(t, storage, since, actionCreate)))
+		assert.Empty(t, findLogs(t, storage, since, "nonexistent"))
+
+		// No actions at all means every action, in the order they were written.
+		assert.Equal(t, []string{"A", "B", "C", "D"}, codesOf(findLogs(t, storage, since)))
+
+		// Several actions match any of them.
+		assert.Equal(t, []string{"A", "C"},
+			codesOf(findLogs(t, storage, since, actionCreate, actionDelete)))
+		assert.Equal(t, []string{"A", "B", "D"},
+			codesOf(findLogs(t, storage, since, actionCreate, actionUpdate, "nonexistent")))
+	})
+
+	t.Run("returns nothing for an empty log", func(t *testing.T) {
+		storage, _ := newTestStorage(t)
+
+		assert.Empty(t, createdSince(t, storage, time.Now().Add(-time.Hour)))
+	})
+
+	// The read handle is opened once and reused, so it must be rewound on every
+	// call and must observe records appended after it was opened.
+	t.Run("can be called repeatedly and sees later records", func(t *testing.T) {
+		storage, _ := newTestStorage(t)
+		now := time.Now()
+		since := now.Add(-time.Hour)
+
+		saveAll(t, storage, Log{Code: "FIRST", Action: actionCreate, By: "boss", At: now})
+
+		first := createdSince(t, storage, since)
+		require.Len(t, first, 1)
+		assert.Equal(t, first, createdSince(t, storage, since))
+
+		saveAll(t, storage, Log{Code: "SECOND", Action: actionCreate, By: "boss", At: now})
+
+		assert.Equal(t, []string{"FIRST", "SECOND"}, codesOf(createdSince(t, storage, since)))
+	})
+
+	// A log bigger than the cap is read from its tail only, so recent records
+	// are still found while ancient ones are left alone.
+	t.Run("reads only the tail of a large log", func(t *testing.T) {
+		storage, _ := newTestStorage(t)
+		now := time.Now()
+
+		saveAll(t, storage, Log{Code: "ANCIENT", Action: actionCreate, By: "boss", At: now})
+
+		// Everything before the last few hundred bytes is now out of reach.
+		storage.maxTailBytes = 512
+		saveAll(t, storage, creations("RECENT_", 20, now)...)
+
+		created := createdSince(t, storage, now.Add(-14*24*time.Hour))
+
+		assert.NotContains(t, codesOf(created), "ANCIENT")
+		assert.Contains(t, codesOf(created), "RECENT_19")
+
+		// Whatever survived the cut must be intact: the discarded partial
+		// record must not leak in as a malformed or truncated entry.
+		for _, c := range created {
+			assert.Equal(t, actionCreate, c.Action)
+			assert.Equal(t, "boss", c.By)
+			assert.Regexp(t, `^RECENT_\d\d$`, c.Code)
+		}
+	})
+
+	// A record that begins exactly at the cut must not be mistaken for the
+	// partial record the cut landed in.
+	t.Run("keeps a record that starts on the tail boundary", func(t *testing.T) {
+		storage, _ := newTestStorage(t)
+		now := time.Now()
+
+		saveAll(t, storage, Log{Code: "FIRST", Action: actionCreate, By: "boss", At: now})
+
+		info, err := storage.reader.Stat()
+		require.NoError(t, err)
+		firstLen := info.Size()
+
+		saveAll(t, storage, Log{Code: "SECOND", Action: actionCreate, By: "boss", At: now})
+
+		// Cut exactly on the boundary between the two records.
+		info, err = storage.reader.Stat()
+		require.NoError(t, err)
+		storage.maxTailBytes = info.Size() - firstLen
+
+		created := createdSince(t, storage, now.Add(-time.Hour))
+
+		assert.Equal(t, []string{"SECOND"}, codesOf(created))
+	})
+
+	t.Run("reads the whole log below the cap", func(t *testing.T) {
+		storage, _ := newTestStorage(t)
+		now := time.Now()
+
+		saveAll(t, storage, creations("C", 50, now)...)
+
+		assert.Equal(t, defaultMaxTailBytes, storage.maxTailBytes)
+		assert.Len(t, createdSince(t, storage, now.Add(-time.Hour)), 50)
+	})
+}
+
+// newTestStorage returns an empty audit log in a temporary directory, along
+// with that directory for the tests that need to touch the file directly.
+func newTestStorage(t *testing.T) (*FileStorage, string) {
+	t.Helper()
+
+	dir := t.TempDir()
+	storage, err := NewFileStorage(dir)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, storage.Close()) })
+
+	return storage, dir
+}
+
+func saveAll(t *testing.T, storage *FileStorage, records ...Log) {
+	t.Helper()
+
+	for _, r := range records {
+		require.NoError(t, storage.Save(r))
+	}
+}
+
+func findLogs(t *testing.T, storage *FileStorage, since time.Time, actions ...string) []Log {
+	t.Helper()
+
+	found, err := storage.FindLogs(since, actions...)
+	require.NoError(t, err)
+
+	return found
+}
+
+// Arbitrary action names: the storage matches them verbatim and attaches no
+// meaning to them, so the tests do not borrow a caller's vocabulary.
+const (
+	actionCreate = "create"
+	actionUpdate = "update"
+	actionDelete = "delete"
+)
+
+// createdSince looks up that action, which most of these tests use as their example.
+func createdSince(t *testing.T, storage *FileStorage, since time.Time) []Log {
+	t.Helper()
+
+	return findLogs(t, storage, since, actionCreate)
+}
+
+func codesOf(created []Log) []string {
+	return lo.Map(created, func(l Log, _ int) string { return l.Code })
+}
+
+// creations builds count creation records stamped with the same moment.
+func creations(prefix string, count int, at time.Time) []Log {
+	return lo.Map(make([]Log, count), func(_ Log, i int) Log {
+		return Log{Code: fmt.Sprintf("%s%02d", prefix, i), Action: actionCreate, By: "boss", At: at}
 	})
 }

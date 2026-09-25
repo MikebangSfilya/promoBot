@@ -25,7 +25,6 @@ type StatsGetter interface {
 }
 
 type Stats struct {
-	base.CommandHandlerTrait
 	common.PrivateCommandTrait
 
 	appEnv       *base.ApplicationEnv

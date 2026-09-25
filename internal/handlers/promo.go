@@ -64,7 +64,6 @@ type SaveService interface {
 }
 
 type PromoHandler struct {
-	base.CommandHandlerTrait
 	common.PrivateCommandTrait
 
 	appEnv       *base.ApplicationEnv
@@ -236,7 +235,7 @@ func (h *PromoHandler) action(reqenv *base.RequestEnv, msg *tgbotapi.Message, fi
 	case actionCreate:
 		auditLog := audit.Log{
 			Code:   promoCode,
-			Action: "create",
+			Action: model.ActionCreate,
 			By:     string(opts.UserName),
 		}
 		err := h.saveService.CreatePromoWithAudit(h.appEnv.Ctx, modelToRepo, auditLog)

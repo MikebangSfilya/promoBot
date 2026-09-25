@@ -11,6 +11,7 @@ import (
 	cfg "github.com/MikebangSfilya/promoBot/internal/config"
 	"github.com/MikebangSfilya/promoBot/internal/db/repo"
 	"github.com/MikebangSfilya/promoBot/internal/service/promo"
+	"github.com/MikebangSfilya/promoBot/internal/service/report"
 
 	"strings"
 	"sync"
@@ -124,6 +125,8 @@ func main() {
 		wasStopped bool
 	)
 
+	startReportScheduler(ctx, appEnv, repo.NewPromo(appEnv), auditStorage, &wg)
+
 	if bot.Debug {
 		if _, err := bot.Request(tgbotapi.DeleteWebhookConfig{}); err != nil {
 			slog.Error("failed to delete webhook",
@@ -204,10 +207,67 @@ func initHandlers(
 		handlers.NewEditHandler(appEnv, stateStorage, service),
 		handlers.NewDeleteHandler(appEnv, service),
 		handlers.NewStats(appEnv, stateStorage, service),
+		handlers.NewHelpHandler(appEnv),
+		// The group guard must stay last: it swallows everything sent in a
+		// group chat, and the first matching handler wins.
+		handlers.NewGroupGuardHandler(appEnv),
 	}
 	callbackHandlers = []base.CallbackHandler{getHandler.CallbackHandler()}
 	metrics.RegisterMessageHandlerCounters(messageHandlers...)
 	return
+}
+
+// startReportScheduler launches the weekly activation report in the background.
+//
+// The feature is opt-in: without ADMINS_CHAT_ID there is nowhere to send the
+// report to, so it is skipped with a warning instead of failing the startup.
+// The goroutine joins the application's WaitGroup so that shutdown() does not
+// close the database pool from under a report that is still being built.
+func startReportScheduler(
+	ctx context.Context,
+	appEnv *base.ApplicationEnv,
+	promoRepo *repo.Promo,
+	auditStorage *audit.FileStorage,
+	wg *sync.WaitGroup,
+) {
+	const op = "startReportScheduler"
+	log := slog.With("op", op)
+
+	reportCfg, err := cfg.NewReportConfig(supportedLanguages, locpool.DefaultLanguage)
+	if err != nil {
+		log.Error("failed to read the weekly activation report configuration",
+			slog.Group("error",
+				slog.String("message", err.Error()),
+				slog.String("component", "config.NewReportConfig")))
+		os.Exit(1)
+	}
+	if reportCfg == nil {
+		log.Warn("the weekly reports are disabled because the admins chat is not configured",
+			slog.String("variable", cfg.EnvAdminsChatID))
+		return
+	}
+
+	lang := locpool.GetContext(reportCfg.Lang)
+	activation := report.NewActivationReport(promoRepo, auditStorage, lang, reportCfg.Period, reportCfg.MaxPages)
+	events := report.NewEventsReport(auditStorage, lang, reportCfg.EventsPeriod, reportCfg.MaxPages)
+
+	// The schedule is parsed before detaching, so a typo in the cron expression
+	// stops the bot right away rather than silently producing no reports. The
+	// reports are sent in the order given, each as its own message.
+	scheduler, err := report.Schedule(reportCfg.Cron, appEnv.Bot, reportCfg.ChatID, activation, events)
+	if err != nil {
+		log.Error("failed to schedule the weekly reports",
+			slog.Group("error",
+				slog.String("message", err.Error()),
+				slog.String("component", "report.Schedule")))
+		os.Exit(1)
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		scheduler.Run(ctx)
+	}()
 }
 
 func shutdown(stateStorage wizard.StateStorage, db *pgxpool.Pool, auditStorage *audit.FileStorage) {

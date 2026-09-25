@@ -12,6 +12,10 @@ import (
 	"github.com/MikebangSfilya/promoBot/internal/model"
 )
 
+// restPromoAuthor is recorded as the creator of promo codes generated through
+// the REST API, which has no Telegram user behind it.
+const restPromoAuthor = "auto"
+
 // flexDate unmarshals JSON date fields from multiple formats:
 //   - full RFC3339 timestamp: "2026-05-01T00:00:00Z"
 //   - date-only string: "2026-05-01" or "01.05.2026"
@@ -97,8 +101,8 @@ func (h *OneTimePromoHandler) GeneratePromo() http.HandlerFunc {
 
 		auditLog := audit.Log{
 			Code:   req.Code,
-			Action: "create",
-			By:     "auto",
+			Action: model.ActionCreate,
+			By:     restPromoAuthor,
 		}
 		err = h.SaveService.CreatePromoWithAudit(ctxTx, code, auditLog)
 		if err != nil {

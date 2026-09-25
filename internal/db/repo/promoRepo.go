@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/MikebangSfilya/promoBot/internal/model"
 	"github.com/jackc/pgx/v5"
@@ -295,7 +296,7 @@ func (p *Promo) GetPromoStats(ctx context.Context, codes ...string) ([]model.Sta
 		   count(uid) AS activations,
 		   capacity + count(uid) AS initial_capacity
 		FROM promo_codes
-		JOIN promo_code_activations USING (code)
+		LEFT JOIN promo_code_activations USING (code)
 		WHERE code = any($1)
 		GROUP BY code, bonus_length, capacity;
 	`
@@ -340,4 +341,71 @@ func (p *Promo) GetPromoStats(ctx context.Context, codes ...string) ([]model.Sta
 
 	return promo, nil
 
+}
+
+// GetActivationStats returns the activation counters of the given promo codes:
+// how many times each was activated within the reported window, and in total.
+//
+// Codes that do exist but were never activated are kept.
+func (p *Promo) GetActivationStats(ctx context.Context, since time.Time, codes []string) ([]model.PromoActivationStat, error) {
+	const op = "Promo.GetActivationStats"
+	log := slog.With("op", op)
+
+	if len(codes) == 0 {
+		return nil, nil
+	}
+
+	db := p.dbFromContext(ctx)
+
+	query := `
+		SELECT p.code, p.bonus_length, p.capacity, p.since, p.until,
+			   count(a.uid) FILTER (WHERE a.activated_at >= $1) AS activations_in_window,
+			   count(a.uid)                                     AS activations_total
+		FROM promo_codes p
+		LEFT JOIN promo_code_activations a USING (code)
+		WHERE p.code = ANY($2)
+		GROUP BY p.code, p.bonus_length, p.capacity, p.since, p.until
+		ORDER BY p.code;
+	`
+
+	rows, err := db.Query(ctx, query, since, codes)
+	if err != nil {
+		log.Error("failed to query activation stats",
+			slog.Group("error",
+				slog.String("message", err.Error()),
+				slog.String("component", "Database.Query")))
+		return nil, err
+	}
+	defer rows.Close()
+
+	var stats []model.PromoActivationStat
+	for rows.Next() {
+		var stat model.PromoActivationStat
+		if err := rows.Scan(
+			&stat.Code,
+			&stat.BonusLength,
+			&stat.Capacity,
+			&stat.Since,
+			&stat.Until,
+			&stat.ActivationsInWindow,
+			&stat.ActivationsTotal,
+		); err != nil {
+			log.Error("failed to scan promo code row",
+				slog.Group("error",
+					slog.String("message", err.Error()),
+					slog.String("component", "rows.Scan")))
+			return nil, err
+		}
+		stats = append(stats, stat)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Error("error iterating promo codes rows",
+			slog.Group("error",
+				slog.String("message", err.Error()),
+				slog.String("component", "rows.Err")))
+		return nil, err
+	}
+
+	return stats, nil
 }

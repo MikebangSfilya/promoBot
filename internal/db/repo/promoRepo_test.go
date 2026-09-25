@@ -3,6 +3,8 @@ package repo
 import (
 	"context"
 	"os"
+	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kozalosev/goSadTgBot/base"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -39,11 +42,22 @@ func setupTestDB(t *testing.T) (*pgxpool.Pool, func()) {
 	pool, err := pgxpool.New(ctx, connStr)
 	require.NoError(t, err)
 
-	// Apply migrations from the actual migration file
-	migration, err := os.ReadFile("../../../db/migrations/000001_create_tables.up.sql")
+	// Apply every migration from the actual files, so the test schema keeps up
+	// as new ones are added rather than pinning one by name.
+	migrations, err := filepath.Glob("../../../db/migrations/*.up.sql")
 	require.NoError(t, err)
-	_, err = pool.Exec(ctx, string(migration))
-	require.NoError(t, err)
+	require.NotEmpty(t, migrations)
+
+	// Glob's ordering is not part of its contract, and 000002 alters what 000001
+	// creates, so the order is imposed here rather than assumed.
+	slices.Sort(migrations)
+
+	for _, path := range migrations {
+		migration, err := os.ReadFile(path)
+		require.NoError(t, err, path)
+		_, err = pool.Exec(ctx, string(migration))
+		require.NoError(t, err, path)
+	}
 
 	cleanup := func() {
 		pool.Close()
@@ -458,4 +472,119 @@ func TestPromo_DeletePromo(t *testing.T) {
 	err = pool.QueryRow(ctx, "SELECT COUNT(*) FROM Promo_Code_Activations WHERE code = $1", usedPromo.Code).Scan(&activationCount)
 	require.NoError(t, err)
 	assert.Equal(t, 2, activationCount)
+}
+
+func TestPromo_GetActivationStats(t *testing.T) {
+	pool, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	repo := NewPromo(&base.ApplicationEnv{Database: pool, Ctx: ctx})
+
+	now := time.Now()
+	since := now.Add(-14 * 24 * time.Hour)
+
+	_, err := pool.Exec(ctx, `
+		INSERT INTO promo_codes (code, bonus_length, since, until, capacity)
+		VALUES ('HIT',  10, current_date, NULL,         5),
+			   ('MISS', 20, current_date, current_date, 3),
+			   ('NULLED', 30, current_date, NULL,       1),
+			   ('NONE', 40, current_date, NULL,         7),
+			   ('UNASKED', 50, current_date, NULL,      9);
+	`)
+	require.NoError(t, err)
+
+	_, err = pool.Exec(ctx, `
+		INSERT INTO promo_code_activations (uid, code, affected_chats, activated_at)
+		VALUES (1, 'HIT',     1, $1),
+			   (2, 'HIT',     1, $1),
+			   (3, 'HIT',     1, $2),
+			   (4, 'MISS',    1, $2),
+			   (5, 'NULLED',  1, NULL),
+			   (6, 'UNASKED', 1, $1);
+	`, now.Add(-1*24*time.Hour), now.Add(-20*24*time.Hour))
+	require.NoError(t, err)
+
+	// Without codes, returns an empty list
+	stats, err := repo.GetActivationStats(ctx, time.Now(), nil)
+	require.NoError(t, err)
+	assert.Empty(t, stats)
+
+	stats, err = repo.GetActivationStats(ctx, since, []string{"HIT", "MISS", "NULLED", "NONE", "DELETED"})
+	require.NoError(t, err)
+
+	byCode := lo.KeyBy(stats, func(s model.PromoActivationStat) string { return s.Code })
+
+	// Only the codes that were asked for and still exist come back.
+	assert.Len(t, stats, 4)
+	assert.NotContains(t, byCode, "UNASKED")
+	assert.NotContains(t, byCode, "DELETED")
+
+	hit := byCode["HIT"]
+	assert.Equal(t, 2, hit.ActivationsInWindow)
+	assert.Equal(t, 3, hit.ActivationsTotal)
+	assert.Equal(t, 8, hit.InitialCapacity())
+	assert.Equal(t, 10, hit.BonusLength)
+	assert.Nil(t, hit.Until)
+
+	// Activated, but not recently enough to count.
+	miss := byCode["MISS"]
+	assert.Equal(t, 0, miss.ActivationsInWindow)
+	assert.Equal(t, 1, miss.ActivationsTotal)
+	assert.NotNil(t, miss.Until)
+
+	// A NULL activated_at predates DickGrowerBot's column and is not recent.
+	nulled := byCode["NULLED"]
+	assert.Equal(t, 0, nulled.ActivationsInWindow)
+	assert.Equal(t, 1, nulled.ActivationsTotal)
+
+	// The LEFT JOIN keeps never-activated codes in the result.
+	none := byCode["NONE"]
+	assert.Equal(t, 0, none.ActivationsInWindow)
+	assert.Equal(t, 0, none.ActivationsTotal)
+	assert.Equal(t, 7, none.InitialCapacity())
+}
+
+func TestPromo_GetPromoStats(t *testing.T) {
+	pool, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	ctx := context.Background()
+	repo := NewPromo(&base.ApplicationEnv{Database: pool, Ctx: ctx})
+
+	_, err := pool.Exec(ctx, `
+		INSERT INTO promo_codes (code, bonus_length, capacity)
+		VALUES ('USED', 10, 3),
+			   ('UNUSED', 20, 5);
+	`)
+	require.NoError(t, err)
+
+	_, err = pool.Exec(ctx, `
+		INSERT INTO promo_code_activations (uid, code, affected_chats)
+		VALUES (1, 'USED', 1),
+			   (2, 'USED', 1);
+	`)
+	require.NoError(t, err)
+
+	stats, err := repo.GetPromoStats(ctx, "USED", "UNUSED", "MISSING")
+	require.NoError(t, err)
+
+	byCode := lo.KeyBy(stats, func(s model.StatResponseCode) string { return s.Code })
+
+	// Only a code that does not exist is left out.
+	assert.Len(t, stats, 2)
+	assert.NotContains(t, byCode, "MISSING")
+
+	used := byCode["USED"]
+	assert.Equal(t, 2, used.Activations)
+	assert.Equal(t, 3, used.Capacity)
+	assert.Equal(t, 5, used.InitialCapacity)
+
+	// A code nobody has activated yet is still reported, with zero activations.
+	unused, found := byCode["UNUSED"]
+	require.True(t, found)
+	assert.Equal(t, 0, unused.Activations)
+	assert.Equal(t, 5, unused.Capacity)
+	assert.Equal(t, 5, unused.InitialCapacity)
+	assert.Equal(t, 20, unused.BonusLength)
 }

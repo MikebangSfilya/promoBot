@@ -75,6 +75,39 @@ func init() {
 
 		"invalid": "Invalid arguments",
 
+		"groupCommandsDisabled": "My commands work in direct messages only. Write to me privately and call /help.",
+
+		"reportTitle":               "📊 <b>Promo code report since %s</b>",
+		"reportSectionCreated":      "🆕 <b>Created:</b>",
+		"reportSectionActivated":    "✅ <b>Activated:</b>",
+		"reportSectionNotActivated": "💤 <b>Never activated:</b>",
+		"reportEntryCreatedFormat": "<code>{code}</code> — by {author}, <b>{length} cm</b>, " +
+			"{capacity} {capacity_PLURAL:activation|activations}, created {created}, " +
+			"valid: {since} — {until}",
+		"reportEntryActivatedFormat":    "<code>{code}</code> — {n} {n_PLURAL:activation|activations}",
+		"reportEntryNotActivatedFormat": "<code>{code}</code>",
+		"reportEmpty":                   "📊 No promo codes have been created since %s.",
+		"reportUnknownAuthor":           "unknown",
+
+		"reportPageSuffix": "%s (page %d)",
+		"reportDateLayout": "2006-01-02",
+		"reportTruncated":  "… and {n} more {n_PLURAL:page|pages} were left out. Raise REPORT_MAX_PAGES to see them.",
+
+		"eventsReportTitle":         "👥 <b>Promo code changes since %s</b>",
+		"eventsReportEmpty":         "👥 No promo codes were changed since %s.",
+		"eventsReportAuthor":        "👤 <b>%s</b>",
+		"eventsReportEntryFormat":   "<i>%s</i> — %s <code>%s</code>",
+		"eventsReportChangesFormat": ": %s",
+		"eventsReportChangeFormat":  "%s <b>%s</b> → <b>%s</b>",
+		"eventsTimeLayout":          "2006-01-02 15:04",
+		"eventsActionCreate":        "created",
+		"eventsActionUpdate":        "updated",
+		"eventsActionDelete":        "deleted",
+		"eventsFieldBonusLength":    "length",
+		"eventsFieldSince":          "start date",
+		"eventsFieldUntil":          "end date",
+		"eventsFieldCapacity":       "activations",
+
 		"user":   "user",
 		"author": "author",
 		"admin":  "admin",
@@ -154,6 +187,39 @@ func init() {
 		"promoUntilAfterSince":  "Дата окончания должна быть позже даты начала",
 		"statsCodesRequired":    "Укажите хотя бы один промокод",
 		"deleteUsage":           "Формат: /delete CODE",
+
+		"groupCommandsDisabled": "Мои команды работают только в личных сообщениях. Напишите мне в личку и вызовите /help.",
+
+		"reportTitle":               "📊 <b>Отчёт по промокодам с %s</b>",
+		"reportSectionCreated":      "🆕 <b>Созданы:</b>",
+		"reportSectionActivated":    "✅ <b>Активированы:</b>",
+		"reportSectionNotActivated": "💤 <b>Ни разу не активированы:</b>",
+		"reportEntryCreatedFormat": "<code>{code}</code> — автор {author}, <b>{length} см</b>, " +
+			"{capacity} {capacity_PLURAL:активация|активации|активаций}, создан {created}, " +
+			"действует: {since} — {until}",
+		"reportEntryActivatedFormat":    "<code>{code}</code> — {n} {n_PLURAL:активация|активации|активаций}",
+		"reportEntryNotActivatedFormat": "<code>{code}</code>",
+		"reportEmpty":                   "📊 С %s не было создано ни одного промокода.",
+		"reportUnknownAuthor":           "неизвестен",
+
+		"reportPageSuffix": "%s (страница %d)",
+		"reportDateLayout": "02.01.2006",
+		"reportTruncated":  "… и ещё {n} {n_PLURAL:страница|страницы|страниц} не поместились. Увеличьте REPORT_MAX_PAGES, чтобы увидеть их.",
+
+		"eventsReportTitle":         "👥 <b>Изменения промокодов с %s</b>",
+		"eventsReportEmpty":         "👥 С %s промокоды не изменялись.",
+		"eventsReportAuthor":        "👤 <b>%s</b>",
+		"eventsReportEntryFormat":   "<i>%s</i> — %s <code>%s</code>",
+		"eventsReportChangesFormat": ": %s",
+		"eventsReportChangeFormat":  "%s <b>%s</b> → <b>%s</b>",
+		"eventsTimeLayout":          "02.01.2006 15:04",
+		"eventsActionCreate":        "создал",
+		"eventsActionUpdate":        "изменил",
+		"eventsActionDelete":        "удалил",
+		"eventsFieldBonusLength":    "прибавка",
+		"eventsFieldSince":          "дата начала",
+		"eventsFieldUntil":          "дата окончания",
+		"eventsFieldCapacity":       "активации",
 
 		"user":   "обычный",
 		"author": "автор",
